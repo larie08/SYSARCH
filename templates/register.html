@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Student Registration Form</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+        <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+    </head>
+    <body>
+        <div class="wrapper">
+            <div class="register_box">
+                <div class="login_header">
+                    <span>Register</span>
+                </div>
+                
+                <form action="{{ url_for('register') }}" method="POST">
+                    <div class="input-box">
+                        <input type="text" id="idno" name="idno" class="input-field" required>
+                        <label for="idno" class="label">IDNO</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <input type="text" id="lastname" name="lastname" class="input-field" required>
+                        <label for="lastname" class="label">Last Name</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <input type="text" id="firstname" name="firstname" class="input-field" required>
+                        <label for="firstname" class="label">First Name</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <input type="text" id="middlename" name="middlename" class="input-field">
+                        <label for="middlename" class="label">Middle Name</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <select id="course" name="course" required>
+                            <option value="BSIT">Bachelor in Science in Information Technology</option>
+                            <option value="BSHM">Bachelor in Science in Hospitality Management</option>
+                            <option value="BSTM">Bachelor in Science in Tourism Management</option>
+                            <option value="BSCJ">Bachelor in Science in Criminal Justice</option>
+                            <option value="BSED">Bachelor in Science in Education</option>
+                            <option value="BSCS">Bachelor in Science in Computer Science</option>
+                            <option value="BSPYSCH">Bachelor in Science in Psychology</option>
+                        </select>
+                        <label for="course" class="label">Select Course</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <select id="level" name="level" required>
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                        <label for="level" class="label">Select Year Level</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <input type="email" id="email" name="email" class="input-field" required>
+                        <label for="email" class="label">Email Address</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <input type="text" id="username" name="username" class="input-field" required>
+                        <label for="username" class="label">Username</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <input type="password" id="password" name="password" class="input-field" required>
+                        <label for="password" class="label">Password</label>
+                    </div>
+        
+                    <div class="input-box">
+                        <input type="submit" class="input-submit" value="Register">
+                    </div>
+                    <a href="{{ url_for('login') }}">Cancel</a>
+                </form>
+                    {% if error %}
+                    <div class="error-message">{{ error }}</div>
+                    {% endif %}
+            </div>
+        </div>    
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                        {% for category, message in messages %}
+                            alert("{{ message }}");
+                        {% endfor %}
+                    });
+                </script>
+            {% endif %}
+        {% endwith %}
+    </body>
+</html>

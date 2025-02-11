@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE-edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Dashboard</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+        <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+    </head>
+    <body>
+        <div class="container">
+            <nav class="sidebar">
+                <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
+                <ul>
+                    <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
+                    <li><a href="{{ url_for('Profile') }}">Profile</a></li>
+                    <li><a href="{{ url_for('Announcement') }}">Announcement</a></li>
+                    <li><a href="{{ url_for('Session') }}">Session</a></li>
+                    <li><a href="{{ url_for('History') }}">Sit-in History</a></li>
+                    <li><a href="{{ url_for('Reservation') }}">Reservation</a></li>
+                </ul>
+                <div class="logout-section">
+                    <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="main-content">
+             <h1>HISTORY PAGE</h1>
+            </main>
+        </div>
+    </body>
+</html>
