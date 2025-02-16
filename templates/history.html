@@ -7,11 +7,11 @@
         <title>Dashboard</title>
         <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
         <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     </head>
     <body>
         <div class="container">
             <nav class="sidebar">
-                <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
                 <ul>
                     <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
                     <li><a href="{{ url_for('Profile') }}">Profile</a></li>
@@ -25,10 +25,124 @@
                 </div>
             </nav>
 
-            <!-- Main Content -->
             <main class="main-content">
              <h1>HISTORY PAGE</h1>
             </main>
         </div>
+
+        <div class="history-container">
+            <div class="search-section">
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="Search...">
+                    <i class="fas fa-search"></i>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">ID NUMBER <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(1)">NAME <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(2)">SIT-IN PURPOSE <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(3)">LABORATORY <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(4)">LOGIN <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(5)">LOGOUT <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(6)">DATE <i class="fas fa-sort"></i></th>
+                            <th>ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in history %}
+                        <tr>
+                            <td>{{ record.idno }}</td>
+                            <td>{{ record.name }}</td>
+                            <td>{{ record.purpose }}</td>
+                            <td>{{ record.laboratory }}</td>
+                            <td>{{ record.login }}</td>
+                            <td>{{ record.logout }}</td>
+                            <td>{{ record.date }}</td>
+                            <td>
+                                <button class="view-btn" onclick="viewDetails('{{ record.id }}')">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <script>
+            document.getElementById('searchInput').addEventListener('keyup', function() {
+                let searchQuery = this.value.toLowerCase();
+                let table = document.getElementById('historyTable');
+                let rows = table.getElementsByTagName('tr');
+
+                for (let i = 1; i < rows.length; i++) {
+                    let row = rows[i];
+                    let cells = row.getElementsByTagName('td');
+                    let found = false;
+
+                    for (let j = 0; j < cells.length - 1; j++) {
+                        let cellText = cells[j].textContent.toLowerCase();
+                        if (cellText.includes(searchQuery)) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    row.style.display = found ? '' : 'none';
+                }
+            });
+
+            function sortTable(n) {
+                let table = document.getElementById('historyTable');
+                let switching = true;
+                let dir = 'asc';
+                let switchcount = 0;
+
+                while (switching) {
+                    switching = false;
+                    let rows = table.rows;
+
+                    for (let i = 1; i < (rows.length - 1); i++) {
+                        let shouldSwitch = false;
+                        let x = rows[i].getElementsByTagName('td')[n];
+                        let y = rows[i + 1].getElementsByTagName('td')[n];
+                        
+                        if (dir === 'asc') {
+                            if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                                shouldSwitch = true;
+                                break;
+                            }
+                        } else {
+                            if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                                shouldSwitch = true;
+                                break;
+                            }
+                        }
+
+                        if (shouldSwitch) {
+                            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                            switching = true;
+                            switchcount++;
+                        }
+                    }
+
+                    if (switchcount === 0 && dir === 'asc') {
+                        dir = 'desc';
+                        switching = true;
+                    }
+                }
+            }
+
+            // View details function
+            function viewDetails(id) {
+                // Add your view details functionality here
+                console.log('Viewing details for ID:', id);
+            }
+        </script>
     </body>
 </html>

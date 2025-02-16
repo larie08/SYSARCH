@@ -11,7 +11,6 @@
     <body>
         <div class="container">
             <nav class="sidebar">
-                <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
                 <ul>
                     <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
                     <li><a href="{{ url_for('Profile') }}">Profile</a></li>
@@ -24,10 +23,43 @@
                     <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
                 </div>
             </nav>
-
-            <!-- Main Content -->
             <main class="main-content">
-             <h1>ANNOUNCEMENT PAGE</h1>
+             <div class="announcement-container">
+                <h2 class="section-header">Announcements</h2>
+                
+                <div class="announcement-item">
+                    <div class="announcement-header">
+                        <span class="announcement-source">CCS Admin</span>
+                        <span class="announcement-date">February 03, 2025</span>
+                    </div>
+                    <h3 class="announcement-title">Sit-in Monitoring System</h3>
+                    <div class="announcement-content">
+                        <p>The College of Computer Studies will open the registration of students for the Sit-in privilege starting tomorrow. Thank you! Lab Supervisor</p>
+                    </div>
+                </div>
+
+                <div class="announcement-item">
+                    <div class="announcement-header">
+                        <span class="announcement-source">CCS Admin</span>
+                        <span class="announcement-date">May 08, 2024</span>
+                    </div>
+                    <h3 class="announcement-title">Launching of the Sit-in Monitoring System</h3>
+                    <div class="announcement-content">
+                        <p>Important Announcement! We are excited to announce the launch of our new website!. Explore our latest products now.</p>
+                    </div>
+                </div>
+
+                <div class="announcement-item">
+                    <div class="announcement-header">
+                        <span class="announcement-source">CCS Dean</span>
+                        <span class="announcement-date">March 18, 2024</span>
+                    </div>
+                    <h3 class="announcement-title">Laboratory Hours Update</h3>
+                    <div class="announcement-content">
+                        <p>Laboratory operating hours have been extended during finals week. Check the new schedule posted.</p>
+                    </div>
+                </div>
+            </div>
             </main>
         </div>
     </body>

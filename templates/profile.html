@@ -7,11 +7,11 @@
         <title>Dashboard</title>
         <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
         <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+        <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     </head>
     <body>
         <div class="container">
             <nav class="sidebar">
-                <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
                 <ul>
                     <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
                     <li><a href="{{ url_for('Profile') }}">Profile</a></li>
@@ -24,21 +24,77 @@
                     <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
                 </div>
             </nav>
-
-            <!-- Main Content -->
             <main class="main-content">
                 <h1>Student Profile</h1>
-                <div>
-                    <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
-                    <h3>{{ users[1] }} {{ users[2] }} {{ users[0] }}</h3><br>
-                    <p>Student ID: 123456</p><br>
-                    <p>Course: {{ users[3] }}</p><br>
-                    <p>Year Level: {{ users[4] }}</p><br>
-                    <p>Email: {{ users[5] }}</p><br>
-                    <p>Address: {{ users[6] }}</p><br>
-                    <p>Sessions: {{ users[7] }}</p>
+                <div class="profile-container">
+                    <div class="profile-header">
+                        <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
+                    </div>
+                    <h3>{{ user[2] }} {{ user[3] }} {{ user[1] }}</h3><br>
+                    <p>Student ID: {{ user[0] }}</p><br>
+                    <p>Course: {{ user[4] }}</p><br>
+                    <p>Year Level: {{ user[5] }}</p><br>
+                    <p>Email: {{ user[6] }}</p><br>
+                    <p>Sessions: {{ user[7] if user|length > 7 else 'N/A' }}</p>
+                    <button class="edit-btn" onclick="openModal()"><i class="fas fa-edit"></i> Edit Profile</button>
                 </div>
             </main>
         </div>
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2><i class="fas fa-user-edit"></i> Edit Profile</h2>
+                <form action="{{ url_for('update_profile') }}" method="POST">
+                    <input type="hidden" name="user_id" value="{{ user[0] if user else '' }}">
+                    <div class="input-group">
+                        <label>First Name:</label>
+                        <input type="text" name="firstname" value="{{ user[2] }}">
+                    </div>
+                    <div class="input-group">
+                        <label>Middle Name:</label>
+                        <input type="text" name="middlename" value="{{ user[3] }}">
+                    </div>
+                    <div class="input-group">
+                        <label>Last Name:</label>
+                        <input type="text" name="lastname" value="{{ user[1] }}">
+                    </div>
+                    <div class="input-group">
+                        <label>Course:</label>
+                        <select name="course" aria-placeholder="Select Course">
+                            <option value="BSIT">Bachelor of Science in Information Technology</option>
+                            <option value="BSHM">Bachelor of Science in Hospitality Management</option>
+                            <option value="BSTM">Bachelor of Science in Tourism Management</option>
+                            <option value="BSCJ">Bachelor of Science in Criminal Justice</option>
+                            <option value="BSED">Bachelor of Science in Education</option>
+                            <option value="BSCS">Bachelor of Science in Computer Science</option>
+                            <option value="BSPYSCH">Bachelor of Science in Psychology</option>
+                        </select>                        
+                    </div>
+                    <div class="input-group">
+                        <label>Year Level:</label>
+                        <select name="yearlevel" aria-placeholder="Select Year Level">
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>                        
+                    </div>
+                    <div class="input-group">
+                        <label>Email:</label>
+                        <input type="email" name="email" value="{{ user[6] }}">
+                    </div>
+                    <button type="submit">Save Changes</button>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            function openModal() {
+                document.getElementById("editModal").style.display = "block";
+            }
+            function closeModal() {
+                document.getElementById("editModal").style.display = "none";
+            }
+        </script>
     </body>
 </html>

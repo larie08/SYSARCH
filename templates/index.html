@@ -1,44 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="IE-edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-        <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
-    </head>
-    <body>
-        <div class="container">
-            <nav class="sidebar">
-                <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
-                <ul>
-                    <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
-                    <li><a href="{{ url_for('Profile') }}">Profile</a></li>
-                    <li><a href="{{ url_for('Announcement') }}">Announcement</a></li>
-                    <li><a href="{{ url_for('Session') }}">Session</a></li>
-                    <li><a href="{{ url_for('History') }}">Sit-in History</a></li>
-                    <li><a href="{{ url_for('Reservation') }}">Reservation</a></li>
-                </ul>
-                <div class="logout-section">
-                    <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
-                </div>
-            </nav>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE-edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <nav class="sidebar">
+            <ul>
+                <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('Profile') }}">Profile</a></li>
+                <li><a href="{{ url_for('Announcement') }}">Announcement</a></li>
+                <li><a href="{{ url_for('Session') }}">Session</a></li>
+                <li><a href="{{ url_for('History') }}">Sit-in History</a></li>
+                <li><a href="{{ url_for('Reservation') }}">Reservation</a></li>
+            </ul>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
+            </div>
+        </nav>
 
-            <main class="main-content">
-                <div class="welcome-header">
-                    <h1>Welcome, {{ session.username }}</h1>
-                </div>
-                <div class="content-area">
-                    <div>
-                        <marquee behavior="scroll" direction="left">
-                            <img src="{{ url_for('static', filename='images/University of Cebu College of Computer Studies.png') }}" width="800" height="150" alt="announcement">
-                            <img src="{{ url_for('static', filename='images/freshmen.png') }}" width="800" height="150" alt="announcement">
-                            <img src="{{ url_for('static', filename='images/sports.png') }}" width="800" height="150" alt="announcement">
-                        </marquee>
+        <main class="main-content">
+            <div class="welcome-header">
+                <h1>Welcome, {{ username }}!</h1>
+            </div>
+            <div class="main-content">
+                <div class="dashboard-section laboratory-rules">
+                    <h2 class="section-header">University of Cebu</h2>
+                    <h3 class="section-header">College of Information and Computer Studies</h3><br>
+                    <h4 class="section-header">Laboratory Rules and Regulations</h4>
+                    <div class="section-content">
+                        <div class="rules-list">
+                            <div class="rule-item">
+                                <i class="fas fa-check-circle"></i>
+                                <p>To avoid embarassment and maintain camaraderie with your friends and superiors at our laboratories, please obeserve the following rules and regulations:</p>
+                            </div>
+                            <div class="rule-item">
+                                <i class="fas fa-check-circle"></i>
+                                <p>1. Maintain silence, proper decorum and discipline inside the laboratory. Mobile phones, walkmans and other personal pieces of equipment must be switched off.</p>
+                            </div>
+                            <div class="rule-item">
+                                <i class="fas fa-check-circle"></i>
+                                <p>2. Games are not allowed inside the lab. This includes computer-related games, card games and other games that may disturbed the operation of the lab.</p>
+                            </div>
+                            <div class="rule-item">
+                                <i class="fas fa-check-circle"></i>
+                                <p>3. Surfing the Internet is allowed only with the permission of the instructor. Downloading and installing of software is strictly not allowed.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </main>
-        </div>
-    </body>
+            </div>
+        </main>
+    </div>
+</body>
 </html>

@@ -11,7 +11,6 @@
     <body>
         <div class="container">
             <nav class="sidebar">
-                <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
                 <ul>
                     <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
                     <li><a href="{{ url_for('Profile') }}">Profile</a></li>
@@ -24,10 +23,60 @@
                     <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
                 </div>
             </nav>
-
-            <!-- Main Content -->
             <main class="main-content">
-             <h1>SESSION PAGE</h1>
+             <div class="session-container">
+                <h2 class="section-header">Sit-in Sessions</h2>
+
+                <div class="session-status-card">
+                    <div class="status-header">
+                        <h3>Your Session Status</h3>
+                        <div class="status-content">
+                            <div class="status-item">
+                                <span class="label">Available Sessions:</span>
+                                <span class="value">{{ sessions_remaining }}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">Sessions Used:</span>
+                                <span class="value">{{ sessions_used }}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">Total Sessions:</span>
+                                <span class="value">3</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="session-history">
+                    <h3>Recent Sessions</h3>
+                    <div class="history-list">
+                        {% if session_history %}
+                            {% for session in session_history %}
+                            <div class="history-item">
+                                <div class="history-header">
+                                    <span class="lab-name">{{ session.lab }}</span>
+                                    <span class="session-date">{{ session.date }}</span>
+                                </div>
+                                <div class="history-details">
+                                    <div class="detail-row">
+                                        <span class="detail-label">Duration:</span>
+                                        <span class="detail-value">{{ session.duration }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Purpose:</span>
+                                        <span class="detail-value">{{ session.purpose }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <p>No session history available</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
             </main>
         </div>
     </body>

@@ -6,31 +6,36 @@
         <title>Student Registration Form</title>
         <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
         <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     </head>
     <body>
         <div class="wrapper">
             <div class="register_box">
                 <div class="login_header">
-                    <span>Register</span>
+                    <h1>Register</h1>
                 </div>
                 
                 <form action="{{ url_for('register') }}" method="POST">
                     <div class="input-box">
+                        <i class="fas fa-id-card"></i>
                         <input type="text" id="idno" name="idno" class="input-field" required>
                         <label for="idno" class="label">IDNO</label>
                     </div>
         
                     <div class="input-box">
+                        <i class="fas fa-user"></i>
                         <input type="text" id="lastname" name="lastname" class="input-field" required>
                         <label for="lastname" class="label">Last Name</label>
                     </div>
         
                     <div class="input-box">
+                        <i class="fas fa-user"></i>
                         <input type="text" id="firstname" name="firstname" class="input-field" required>
                         <label for="firstname" class="label">First Name</label>
                     </div>
         
                     <div class="input-box">
+                        <i class="fas fa-user"></i>
                         <input type="text" id="middlename" name="middlename" class="input-field">
                         <label for="middlename" class="label">Middle Name</label>
                     </div>
@@ -59,23 +64,27 @@
                     </div>
         
                     <div class="input-box">
+                        <i class="fas fa-envelope"></i>
                         <input type="email" id="email" name="email" class="input-field" required>
                         <label for="email" class="label">Email Address</label>
                     </div>
         
                     <div class="input-box">
+                        <i class="fas fa-user"></i>
                         <input type="text" id="username" name="username" class="input-field" required>
                         <label for="username" class="label">Username</label>
                     </div>
         
                     <div class="input-box">
+                        <i class="fas fa-lock"></i>
                         <input type="password" id="password" name="password" class="input-field" required>
                         <label for="password" class="label">Password</label>
                     </div>
-        
+                    <br>
                     <div class="input-box">
                         <input type="submit" class="input-submit" value="Register">
                     </div>
+                    <br>
                     <a href="{{ url_for('login') }}">Cancel</a>
                 </form>
                     {% if error %}
