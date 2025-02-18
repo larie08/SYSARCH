@@ -4,12 +4,23 @@
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE-edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard</title>
+        <title>Sit-in Monitoring System - Student Profile</title>
         <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
         <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
         <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     </head>
     <body>
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <div class="container">
             <nav class="sidebar">
                 <ul>
@@ -28,14 +39,34 @@
                 <h1>Student Profile</h1>
                 <div class="profile-container">
                     <div class="profile-header">
-                        <img src="{{ url_for('static', filename='images/student.png') }}" class="round-circle" alt="student profile">
+                        <form action="{{ url_for('save_photo') }}" method="POST" enctype="multipart/form-data" id="photo-form">
+                            <div class="profile-image-upload">
+                                <img src="{{ url_for('static', filename='uploads/' + (user[9] if user[9] else 'default-profile.png')) }}" 
+                                     alt="Profile Photo" 
+                                     class="round-circle" 
+                                     id="preview-image">
+                                <label for="photo-upload" class="upload-overlay">
+                                    <i class="fas fa-camera"></i>
+                                    <span>Change Photo</span>
+                                </label>
+                                <input type="file" 
+                                       id="photo-upload" 
+                                       name="photo" 
+                                       accept="image/*"
+                                       onchange="previewImage(this);">
+                            </div>
+                            <button type="submit" class="save-photo-btn" id="save-photo-btn" style="display: none;">
+                                <i class="fas fa-save"></i> Save Photo
+                            </button>
+                        </form>
                     </div>
                     <h3>{{ user[2] }} {{ user[3] }} {{ user[1] }}</h3><br>
                     <p>Student ID: {{ user[0] }}</p><br>
                     <p>Course: {{ user[4] }}</p><br>
                     <p>Year Level: {{ user[5] }}</p><br>
                     <p>Email: {{ user[6] }}</p><br>
-                    <p>Sessions: {{ user[7] if user|length > 7 else 'N/A' }}</p>
+                    <p>Address: {{ user[7] }}</p><br>
+                    <p>Sessions: {{ user[8] }}</p><br>
                     <button class="edit-btn" onclick="openModal()"><i class="fas fa-edit"></i> Edit Profile</button>
                 </div>
             </main>
@@ -44,8 +75,8 @@
             <div class="modal-content">
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2><i class="fas fa-user-edit"></i> Edit Profile</h2>
-                <form action="{{ url_for('update_profile') }}" method="POST">
-                    <input type="hidden" name="user_id" value="{{ user[0] if user else '' }}">
+                <form action="{{ url_for('Profile') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="user_id" value="{{ user[0] }}">
                     <div class="input-group">
                         <label>First Name:</label>
                         <input type="text" name="firstname" value="{{ user[2] }}">
@@ -60,28 +91,32 @@
                     </div>
                     <div class="input-group">
                         <label>Course:</label>
-                        <select name="course" aria-placeholder="Select Course">
-                            <option value="BSIT">Bachelor of Science in Information Technology</option>
-                            <option value="BSHM">Bachelor of Science in Hospitality Management</option>
-                            <option value="BSTM">Bachelor of Science in Tourism Management</option>
-                            <option value="BSCJ">Bachelor of Science in Criminal Justice</option>
-                            <option value="BSED">Bachelor of Science in Education</option>
-                            <option value="BSCS">Bachelor of Science in Computer Science</option>
-                            <option value="BSPYSCH">Bachelor of Science in Psychology</option>
+                        <select name="course">
+                            <option value="BSIT" {{ 'selected' if user[4] == 'BSIT' }}>Bachelor of Science in Information Technology</option>
+                            <option value="BSHM" {{ 'selected' if user[4] == 'BSHM' }}>Bachelor of Science in Hospitality Management</option>
+                            <option value="BSTM" {{ 'selected' if user[4] == 'BSTM' }}>Bachelor of Science in Tourism Management</option>
+                            <option value="BSCJ" {{ 'selected' if user[4] == 'BSCJ' }}>Bachelor of Science in Criminal Justice</option>
+                            <option value="BSED" {{ 'selected' if user[4] == 'BSED' }}>Bachelor of Science in Education</option>
+                            <option value="BSCS" {{ 'selected' if user[4] == 'BSCS' }}>Bachelor of Science in Computer Science</option>
+                            <option value="BSPYSCH" {{ 'selected' if user[4] == 'BSPYSCH' }}>Bachelor of Science in Psychology</option>
                         </select>                        
                     </div>
                     <div class="input-group">
                         <label>Year Level:</label>
-                        <select name="yearlevel" aria-placeholder="Select Year Level">
-                            <option value="1st Year">1st Year</option>
-                            <option value="2nd Year">2nd Year</option>
-                            <option value="3rd Year">3rd Year</option>
-                            <option value="4th Year">4th Year</option>
+                        <select name="yearlevel">
+                            <option value="1st Year" {{ 'selected' if user[5] == '1st Year' }}>1st Year</option>
+                            <option value="2nd Year" {{ 'selected' if user[5] == '2nd Year' }}>2nd Year</option>
+                            <option value="3rd Year" {{ 'selected' if user[5] == '3rd Year' }}>3rd Year</option>
+                            <option value="4th Year" {{ 'selected' if user[5] == '4th Year' }}>4th Year</option>
                         </select>                        
                     </div>
                     <div class="input-group">
                         <label>Email:</label>
                         <input type="email" name="email" value="{{ user[6] }}">
+                    </div>
+                    <div class="input-group">
+                        <label>Address:</label>
+                        <textarea name="address" class="address-input" rows="3">{{ user[7] }}</textarea>
                     </div>
                     <button type="submit">Save Changes</button>
                 </form>
@@ -95,6 +130,90 @@
             function closeModal() {
                 document.getElementById("editModal").style.display = "none";
             }
+            function previewImage(input) {
+                if (input.files && input.files[0]) {
+                    // Check file size (limit to 5MB)
+                    if (input.files[0].size > 5 * 1024 * 1024) {
+                        alert('File size too large! Please select an image under 5MB.');
+                        input.value = '';
+                        return;
+                    }
+
+                    // Check file type
+                    const fileType = input.files[0].type;
+                    if (!fileType.startsWith('image/')) {
+                        alert('Please select an image file (JPG, PNG, GIF)');
+                        input.value = '';
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('preview-image').src = e.target.result;
+                        document.getElementById('save-photo-btn').style.display = 'block';
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                }
+            }
+
+            // Optional: Add drag and drop support
+            const dropZone = document.querySelector('.profile-image-upload');
+            const fileInput = document.getElementById('photo-upload');
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length) {
+                    fileInput.files = files;
+                    previewImage(fileInput);
+                }
+            });
+
+            // Auto-hide alerts after 3 seconds
+            document.addEventListener('DOMContentLoaded', function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    setTimeout(function() {
+                        alert.style.opacity = '0';
+                        setTimeout(function() {
+                            alert.style.display = 'none';
+                        }, 300);
+                    }, 3000);
+                });
+            });
         </script>
+
+        <style>
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 5px;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+
+        .alert-success {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .alert-error {
+            background-color: #f44336;
+            color: white;
+        }
+        </style>
     </body>
 </html>

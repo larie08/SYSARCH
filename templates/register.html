@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Student Registration Form</title>
+        <title>Sit-in Monitoring System - Student Registration Form</title>
         <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
         <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -61,6 +61,13 @@
                             <option value="4th Year">4th Year</option>
                         </select>
                         <label for="level" class="label">Select Year Level</label>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="address">Address</label>
+                            <textarea id="address" name="address" rows="3" required></textarea>
+                        </div>
                     </div>
         
                     <div class="input-box">

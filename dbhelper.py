@@ -1,16 +1,16 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
+from sqlite3 import Row
 
 def connect_db():
     conn = sqlite3.connect('users.db')
-    conn.row_factory = sqlite3.Row  # Enables fetching rows as dictionaries
+    conn.row_factory = sqlite3.Row 
     return conn
 
 def create_tables():
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
-        
-        # Create users table if it doesn't exist
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 IDNO TEXT PRIMARY KEY,
@@ -23,10 +23,9 @@ def create_tables():
                 Username TEXT UNIQUE NOT NULL,
                 Password TEXT NOT NULL,
                 sessions INTEGER DEFAULT 3
-            )
+           )
         """)
-        
-        # Create reservations table if it doesn't exist
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS reservations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,12 +38,11 @@ def create_tables():
                 FOREIGN KEY (idno) REFERENCES users(IDNO)
             )
         """)
-        
-        # Add time_out column if it doesn't exist
+
         try:
             cursor.execute("ALTER TABLE reservations ADD COLUMN time_out DATETIME")
         except sqlite3.OperationalError:
-            # Column already exists
+
             pass
             
         conn.commit()
@@ -98,21 +96,156 @@ def update_password(username, new_password):
     finally:
         conn.close()
 
-def get_data():
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
+def update_user_profile(student_id, data):
+    """Update user profile information including photo"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # Build the query based on whether a photo is included
+            if data.get('photo'):
+                query = """
+                    UPDATE users 
+                    SET firstname = ?, 
+                        lastname = ?, 
+                        middlename = ?,
+                        email = ?,
+                        course = ?,
+                        year_level = ?,
+                        address = ?,
+                        photo = ?
+                    WHERE idno = ?
+                """
+                params = [
+                    data['firstname'],
+                    data['lastname'],
+                    data['middlename'],
+                    data['email'],
+                    data['course'],
+                    data['level'],
+                    data['address'],
+                    data['photo'],
+                    student_id
+                ]
+            else:
+                query = """
+                    UPDATE users 
+                    SET firstname = ?, 
+                        lastname = ?, 
+                        middlename = ?,
+                        email = ?,
+                        course = ?,
+                        year_level = ?,
+                        address = ?
+                    WHERE idno = ?
+                """
+                params = [
+                    data['firstname'],
+                    data['lastname'],
+                    data['middlename'],
+                    data['email'],
+                    data['course'],
+                    data['level'],
+                    data['address'],
+                    student_id
+                ]
 
-    # Fetch Sit-in Requests
-    cursor.execute("SELECT class_name, date, status FROM sessions WHERE student_id = ?", (session['student_id'],))
-    requests = cursor.fetchall()
+            # Execute update
+            cursor.execute(query, params)
+            conn.commit()
+            
+            # Verify the update
+            cursor.execute("SELECT photo FROM users WHERE idno = ?", (student_id,))
+            result = cursor.fetchone()
+            print("Updated photo value:", result[0] if result else None)
+            
+            return True
+    except Exception as e:
+        print(f"Error updating user profile: {e}")
+        return False
 
-    # Fetch Upcoming Sessions
-    cursor.execute("SELECT class_name, instructor, date, time FROM sessions WHERE status='Approved' AND date >= DATE('now')")
-    upcoming_sessions = cursor.fetchall()
+def get_user_profile(student_id):
+    """Get user profile information including photo"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT idno,         -- 0
+                       lastname,     -- 1
+                       firstname,    -- 2
+                       middlename,   -- 3
+                       course,       -- 4
+                       year_level,   -- 5
+                       email,        -- 6
+                       address,      -- 7
+                       sessions,     -- 8
+                       photo         -- 9
+                FROM users 
+                WHERE idno = ?
+            """, (student_id,))
+            result = cursor.fetchone()
+            print("Retrieved profile with photo:", result[9] if result else None)
+            return result
+    except Exception as e:
+        print(f"Error fetching user profile: {e}")
+        return None
 
-    # Fetch Popular Sit-in Classes
-    cursor.execute("SELECT class_name, COUNT(student_id) AS student_count FROM sessions GROUP BY class_name ORDER BY student_count DESC LIMIT 5")
-    popular_classes = cursor.fetchall()
+def initialize_user_sessions(student_idno):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Check if user already has session data
+        cursor.execute("SELECT * FROM user_session_counts WHERE student_idno = ?", (student_idno,))
+        existing = cursor.fetchone()
+        
+        if not existing:
+            # Initialize with 30 total sessions
+            cursor.execute("""
+                INSERT INTO user_session_counts (student_idno, total_sessions, available_sessions, used_sessions) 
+                VALUES (?, 30, 30, 0)
+            """, (student_idno,))
+            conn.commit()
+    except Exception as e:
+        print(f"Error initializing sessions: {e}")
+    finally:
+        conn.close()
 
-    conn.close()
-    return requests, upcoming_sessions, popular_classes
+def update_sessions_on_reservation(student_idno):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Get current session counts
+        cursor.execute("""
+            SELECT available_sessions, used_sessions 
+            FROM user_session_counts 
+            WHERE student_idno = ?
+        """, (student_idno,))
+        session_data = cursor.fetchone()
+        
+        if session_data and session_data[0] > 0:  # If there are available sessions
+            # Update the counts
+            cursor.execute("""
+                UPDATE user_session_counts 
+                SET available_sessions = available_sessions - 1,
+                    used_sessions = used_sessions + 1
+                WHERE student_idno = ?
+            """, (student_idno,))
+            conn.commit()
+            return True
+        return False
+    finally:
+        conn.close()
+
+# Add this function to help debug
+def get_user_by_id(student_id):
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE idno = ?", (student_id,))
+        user = cursor.fetchone()
+        return user
+    except Exception as e:
+        print(f"Error getting user: {e}")
+        return None
+    finally:
+        conn.close()

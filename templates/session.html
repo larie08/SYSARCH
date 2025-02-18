@@ -4,9 +4,10 @@
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE-edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard</title>
+        <title>Sit-in Monitoring System - Session Form</title>
         <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
         <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+        <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     </head>
     <body>
         <div class="container">
@@ -24,59 +25,23 @@
                 </div>
             </nav>
             <main class="main-content">
-             <div class="session-container">
-                <h2 class="section-header">Sit-in Sessions</h2>
-
-                <div class="session-status-card">
-                    <div class="status-header">
-                        <h3>Your Session Status</h3>
-                        <div class="status-content">
-                            <div class="status-item">
-                                <span class="label">Available Sessions:</span>
-                                <span class="value">{{ sessions_remaining }}</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="label">Sessions Used:</span>
-                                <span class="value">{{ sessions_used }}</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="label">Total Sessions:</span>
-                                <span class="value">3</span>
-                            </div>
+                <h1>Sit-in Sessions</h1>
+                <div class="session-container">
+                    <div class="session-info">
+                        <div class="session-item">
+                            <label>Total Sessions:</label>
+                            <span class="session-value">{{ total_sessions }}</span>
+                        </div>
+                        <div class="session-item">
+                            <label>Available Sessions:</label>
+                            <span class="session-value">{{ available_sessions }}</span>
+                        </div>
+                        <div class="session-item">
+                            <label>Sessions Used:</label>
+                            <span class="session-value">{{ used_sessions }}</span>
                         </div>
                     </div>
                 </div>
-
-                <div class="session-history">
-                    <h3>Recent Sessions</h3>
-                    <div class="history-list">
-                        {% if session_history %}
-                            {% for session in session_history %}
-                            <div class="history-item">
-                                <div class="history-header">
-                                    <span class="lab-name">{{ session.lab }}</span>
-                                    <span class="session-date">{{ session.date }}</span>
-                                </div>
-                                <div class="history-details">
-                                    <div class="detail-row">
-                                        <span class="detail-label">Duration:</span>
-                                        <span class="detail-value">{{ session.duration }}</span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <span class="detail-label">Purpose:</span>
-                                        <span class="detail-value">{{ session.purpose }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="empty-state">
-                                <p>No session history available</p>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
             </main>
         </div>
     </body>

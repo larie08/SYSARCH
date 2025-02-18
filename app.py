@@ -1,12 +1,24 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from dbhelper import *
 from werkzeug.security import check_password_hash
+import os
+from werkzeug.utils import secure_filename
+import time
 
 app = Flask(__name__)
 app.secret_key = 'tonifowlersupersecretkey'
 
+UPLOAD_FOLDER = os.path.join('static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
 with app.app_context():
     create_tables()
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -53,49 +65,119 @@ def Dashboard():
                          username=session['username'],
                          reservations=reservations)
 
-
-@app.route('/Profile')
+@app.route('/Profile', methods=['GET', 'POST'])
 def Profile():
-    if 'username' not in session:
-        return redirect(url_for('login'))  
-
-    username = session['username']  
-
-    with sqlite3.connect("users.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT IDNO, LASTNAME, FIRSTNAME, MIDDLENAME, COURSE, YEAR_LEVEL, EMAIL FROM users WHERE Username = ?", (username,))
-        user = cursor.fetchone()  
-
-    if user:
-        return render_template('profile.html', user=user)  
-    else:
-        flash("User not found!", "error")
-        return redirect(url_for('Dashboard'))  
-
-@app.route('/update_profile', methods=['POST'])
-def update_profile():
     if 'username' not in session:
         return redirect(url_for('login'))
     
-    user_id = request.form.get('user_id')
-    firstname = request.form.get('firstname')
-    middlename = request.form.get('middlename')
-    lastname = request.form.get('lastname')
-    course = request.form.get('course')
-    yearlevel = request.form.get('yearlevel')
-    email = request.form.get('email')
-    
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE users
-        SET firstname=?, middlename=?, lastname=?, course=?, year_level=?, email=?
-        WHERE idno=?
-    """, (firstname, middlename, lastname, course, yearlevel, email, user_id))
-    conn.commit()
-    conn.close()
+    if request.method == 'POST':
+        data = {
+            'firstname': request.form.get('firstname', ''),
+            'lastname': request.form.get('lastname', ''),
+            'middlename': request.form.get('middlename', ''),
+            'email': request.form.get('email', ''),
+            'course': request.form.get('course', ''),
+            'level': request.form.get('yearlevel', ''),
+            'address': request.form.get('address', ''),
+            'photo': None
+        }
 
-    return redirect(url_for('Profile'))  # Redirect back to profile page
+        # Handle photo upload
+        if 'photo' in request.files:
+            file = request.files['photo']
+            if file and file.filename != '':
+                try:
+                    # Create upload directory if it doesn't exist
+                    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                        os.makedirs(app.config['UPLOAD_FOLDER'])
+
+                    # Generate unique filename
+                    filename = secure_filename(file.filename)
+                    timestamp = int(time.time())
+                    photo_filename = f"{timestamp}_{filename}"
+                    
+                    # Save the file
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], photo_filename)
+                    file.save(file_path)
+                    
+                    # Update data dictionary with new photo filename
+                    data['photo'] = photo_filename
+                    
+                    print(f"Photo saved as: {photo_filename}")  # Debug print
+                except Exception as e:
+                    print(f"Error saving photo: {e}")
+                    flash('Error uploading photo.', 'error')
+
+        # Debug print
+        print("Data being sent to update_user_profile:", data)
+
+        # Update profile in database
+        if update_user_profile(session['student_id'], data):
+            flash('Profile updated successfully!', 'success')
+        else:
+            flash('Error updating profile.', 'error')
+        
+        return redirect(url_for('Profile'))
+
+    # GET request - show profile
+    user_profile = get_user_profile(session['student_id'])
+    print("User profile data:", user_profile)  # Add this debug print
+    return render_template('profile.html', user=user_profile)
+
+@app.route('/save_photo', methods=['POST'])
+def save_photo():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    # Get existing user data first
+    current_user = get_user_profile(session['student_id'])
+    
+    if 'photo' not in request.files:
+        flash('No photo uploaded', 'error')
+        return redirect(url_for('Profile'))
+    
+    file = request.files['photo']
+    if file.filename == '':
+        flash('No photo selected', 'error')
+        return redirect(url_for('Profile'))
+
+    if file:
+        try:
+            # Create upload directory if it doesn't exist
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'])
+
+            # Generate unique filename
+            filename = secure_filename(file.filename)
+            timestamp = int(time.time())
+            photo_filename = f"{timestamp}_{filename}"
+            
+            # Save the file
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], photo_filename)
+            file.save(file_path)
+            
+            # Prepare data with existing user information
+            data = {
+                'firstname': current_user[2],    # firstname
+                'lastname': current_user[1],     # lastname
+                'middlename': current_user[3],   # middlename
+                'email': current_user[6],        # email
+                'course': current_user[4],       # course
+                'level': current_user[5],        # year_level
+                'address': current_user[7],      # address
+                'photo': photo_filename          # new photo
+            }
+            
+            if update_user_profile(session['student_id'], data):
+                flash('Photo updated successfully!', 'success')
+            else:
+                flash('Error updating photo in database', 'error')
+                
+        except Exception as e:
+            print(f"Error saving photo: {e}")
+            flash('Error saving photo', 'error')
+    
+    return redirect(url_for('Profile'))
 
 @app.route('/Announcement')
 def Announcement():
@@ -328,3 +410,4 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
