@@ -2,6 +2,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 from sqlite3 import Row
 
+#dbhelper para sa user end/students
 def connect_db():
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row 
@@ -102,7 +103,6 @@ def update_user_profile(student_id, data):
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             
-            # Build the query based on whether a photo is included
             if data.get('photo'):
                 query = """
                     UPDATE users 
@@ -150,11 +150,9 @@ def update_user_profile(student_id, data):
                     student_id
                 ]
 
-            # Execute update
             cursor.execute(query, params)
             conn.commit()
-            
-            # Verify the update
+
             cursor.execute("SELECT photo FROM users WHERE idno = ?", (student_id,))
             result = cursor.fetchone()
             print("Updated photo value:", result[0] if result else None)
@@ -194,12 +192,10 @@ def initialize_user_sessions(student_idno):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Check if user already has session data
         cursor.execute("SELECT * FROM user_session_counts WHERE student_idno = ?", (student_idno,))
         existing = cursor.fetchone()
         
         if not existing:
-            # Initialize with 30 total sessions
             cursor.execute("""
                 INSERT INTO user_session_counts (student_idno, total_sessions, available_sessions, used_sessions) 
                 VALUES (?, 30, 30, 0)
@@ -214,7 +210,6 @@ def update_sessions_on_reservation(student_idno):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Get current session counts
         cursor.execute("""
             SELECT available_sessions, used_sessions 
             FROM user_session_counts 
@@ -222,8 +217,7 @@ def update_sessions_on_reservation(student_idno):
         """, (student_idno,))
         session_data = cursor.fetchone()
         
-        if session_data and session_data[0] > 0:  # If there are available sessions
-            # Update the counts
+        if session_data and session_data[0] > 0:  
             cursor.execute("""
                 UPDATE user_session_counts 
                 SET available_sessions = available_sessions - 1,
@@ -236,7 +230,6 @@ def update_sessions_on_reservation(student_idno):
     finally:
         conn.close()
 
-# Add this function to help debug
 def get_user_by_id(student_id):
     try:
         conn = connect_db()
@@ -249,3 +242,205 @@ def get_user_by_id(student_id):
         return None
     finally:
         conn.close()
+
+#dbhelper para sa staff end
+def add_staff(staff_data):
+    """Add a new staff member"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO staff (
+                    staff_id, firstname, middlename, lastname, 
+                    email, username, password, role, photo
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                staff_data['staff_id'],
+                staff_data['firstname'],
+                staff_data['middlename'],
+                staff_data['lastname'],
+                staff_data['email'],
+                staff_data['username'],
+                generate_password_hash(staff_data['password']),
+                staff_data['role'],
+                staff_data.get('photo', None)
+            ))
+            conn.commit()
+            return True
+    except sqlite3.IntegrityError as e:
+        print(f"Error adding staff: {e}")
+        return False
+
+def get_staff_profile(staff_id):
+    """Get staff member profile"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT staff_id, firstname, middlename, lastname, 
+                   email, username, role, photo
+            FROM staff 
+            WHERE staff_id = ?
+        """, (staff_id,))
+        return cursor.fetchone()
+    finally:
+        conn.close()
+
+def update_reservation_status(reservation_id, new_status, staff_id, remarks=None):
+    """Update reservation status and record in history"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # First update the reservation status
+        cursor.execute("""
+            UPDATE reservations 
+            SET status = ? 
+            WHERE id = ?
+        """, (new_status, reservation_id))
+        
+        # Then record the change in status_history
+        cursor.execute("""
+            INSERT INTO status_history (
+                reservation_id, status, changed_by, remarks
+            ) VALUES (?, ?, ?, ?)
+        """, (reservation_id, new_status, staff_id, remarks))
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating reservation status: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_pending_reservations():
+    """Get all pending reservations"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                r.id,
+                r.idno,
+                u.firstname,
+                u.lastname,
+                r.purpose,
+                r.lab,
+                r.time_in,
+                r.status
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            WHERE r.status = 'Pending'
+            ORDER BY r.time_in ASC
+        """)
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+def get_status_history(reservation_id):
+    """Get the status history for a reservation"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                sh.status,
+                sh.changed_at,
+                s.firstname || ' ' || s.lastname as staff_name,
+                sh.remarks
+            FROM status_history sh
+            JOIN staff s ON sh.changed_by = s.staff_id
+            WHERE sh.reservation_id = ?
+            ORDER BY sh.changed_at DESC
+        """, (reservation_id,))
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+def staff_login(username, password):
+    """Verify staff login credentials"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT staff_id, password, firstname, lastname, role 
+            FROM staff 
+            WHERE username = ?
+        """, (username,))
+        staff = cursor.fetchone()
+        
+        if staff and staff['password'] == password:  # Using plain text for now
+            return {
+                'staff_id': staff['staff_id'],
+                'name': f"{staff['firstname']} {staff['lastname']}",
+                'role': staff['role']
+            }
+        return None
+    finally:
+        conn.close()
+
+def get_pending_reservations():
+    """Get all pending sit-in reservations"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                r.id,
+                r.idno,
+                u.firstname,
+                u.lastname,
+                u.course,
+                u.year_level,
+                r.purpose,
+                r.lab,
+                r.time_in,
+                r.status
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            WHERE r.status = 'Pending'
+            ORDER BY r.time_in ASC
+        """)
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+def add_announcement(title, content, staff_id):
+    """Add a new announcement"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO announcements (title, content, created_by)
+            VALUES (?, ?, ?)
+        """, (title, content, staff_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error adding announcement: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_announcements():
+    """Get all announcements with staff details"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                a.id,
+                a.title,
+                a.content,
+                s.firstname || ' ' || s.lastname as staff_name,
+                a.created_at
+            FROM announcements a
+            JOIN staff s ON a.created_by = s.staff_id
+            ORDER BY a.created_at DESC
+        """)
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+

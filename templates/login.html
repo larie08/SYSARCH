@@ -5,17 +5,27 @@
         <meta http-equiv="X-UA-Compatible" content="IE-edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Sit-in Monitoring System - Login</title>
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='/ccs.png') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
         <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     </head>
     <body>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
         <div class="wrapper">
             <div class="login_box">
                 <div class="login_header">
                     <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="Logo" class="round-logo">
                     <span class="login-text">LOG IN</span>
-                </div>                
+                </div>                    
                 <form action="{{ url_for('login') }}" method="POST">
                     <div class="input-box">
                         <i class="fas fa-user"></i>
@@ -45,16 +55,18 @@
                 </form>
             </div>
         </div>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <script>
-                    document.addEventListener("DOMContentLoaded", function() {
-                        {% for category, message in messages %}
-                            alert("{{ message }}");
-                        {% endfor %}
-                    });
-                </script>
-            {% endif %}
-        {% endwith %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    setTimeout(function() {
+                        alert.style.opacity = '0';
+                        setTimeout(function() {
+                            alert.style.display = 'none';
+                        }, 300);
+                    }, 3000);
+                });
+            });
+        </script>
     </body>
 </html>

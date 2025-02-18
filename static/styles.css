@@ -72,6 +72,36 @@ a:hover{
     margin-top: 5px; 
 }
 
+.alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 5px;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+}
+
+.alert-success {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.alert-error {
+    background-color: #f44336;
+    color: white;
+}
+
+   /* Auto-hide alerts */
+   @keyframes fadeOut {
+    from {opacity: 1;}
+    to {opacity: 0;}
+}
+
+.alert {
+    animation: fadeOut 0.5s ease 3s forwards;
+}
+
 /* Password Page Styles*/
 .password_box{
     position: relative;
@@ -1303,7 +1333,6 @@ tr:hover {
     background-color: #7a9bc2;
 }
 
-/* Simplified select styling */
 select {
     appearance: none;
     -webkit-appearance: none;
@@ -1315,7 +1344,6 @@ select {
     padding-right: 40px;
 }
 
-/* Add this new style */
 .register-form {
     display: flex;
     flex-direction: column;
@@ -1323,7 +1351,6 @@ select {
     position: center;
 }
 
-/* If needed, add this to ensure form content stays full width */
 .form-row, .form-group.full-width {
     width: 100%;
 }
