@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from dbhelper import *
 from werkzeug.security import check_password_hash
 import os
@@ -92,7 +92,52 @@ def admin_dashboard():
 def admin_sitin():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
-    return render_template('admin/adminsitin.html')
+    
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT idno, firstname, middlename, lastname, course, year_level 
+            FROM users 
+            ORDER BY lastname ASC
+        """)
+        students = cursor.fetchall()
+    
+    return render_template('admin/adminsitin.html', students=students)
+
+@app.route('/admin/search_student/<student_id>')
+def search_student(student_id):
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            # Modified query to ensure proper column selection and matching
+            cursor.execute("""
+                SELECT idno, firstname, middlename, lastname, course, year_level, sessions 
+                FROM users 
+                WHERE idno = ?
+            """, (student_id,))
+            student = cursor.fetchone()
+            
+            if student:
+                # Include middlename in the full name if available
+                full_name = f"{student[1]} {student[2] if student[2] else ''} {student[3]}".strip()
+                return jsonify({
+                    'id': student[0],
+                    'name': full_name,
+                    'course': student[4],
+                    'year_level': student[5],
+                    'remainingSession': student[6] if student[6] is not None else 30
+                })
+            
+            # If no student found, return specific error
+            print(f"No student found with ID: {student_id}")  # Debug print
+            return jsonify({'error': f'No student found with ID: {student_id}'}), 404
+            
+    except Exception as e:
+        print(f"Database error: {e}")  # Debug print
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/reports')
 def admin_reports():
@@ -172,6 +217,50 @@ def admin_add_announcement():
     else:
         flash('Failed to add announcement', 'error')
     return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/announcement/edit/<int:announcement_id>', methods=['GET', 'POST'])
+def edit_announcement(announcement_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        message = request.form.get('message')
+        author = request.form.get('author')
+        admin_id = session['admin_id']
+        
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    UPDATE announcements 
+                    SET title = ?, message = ?, admin_id = ?
+                    WHERE announcement_id = ?
+                """, (title, message, admin_id, announcement_id))
+                conn.commit()
+                flash('Announcement updated successfully', 'success')
+            except Exception as e:
+                print(f"Error updating announcement: {e}")
+                flash('Failed to update announcement', 'error')
+                
+        return redirect(url_for('admin_announcement'))
+    
+    # GET request - fetch announcement data for editing
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT a.announcement_id, a.title, a.message, a.created_at, adm.username
+            FROM announcements a
+            JOIN admin adm ON a.admin_id = adm.admin_id
+            WHERE a.announcement_id = ?
+        """, (announcement_id,))
+        announcement = cursor.fetchone()
+        
+    if announcement:
+        return render_template('admin/adminannouncement.html', announcement=announcement)
+    else:
+        flash('Announcement not found', 'error')
+        return redirect(url_for('admin_announcement'))
 
 @app.route('/admin/sit_in_student', methods=['GET', 'POST'])
 def admin_sit_in_student():
@@ -394,7 +483,18 @@ def save_photo():
 def Announcement():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('student/announcement.html')
+        
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT a.announcement_id, a.title, a.message, a.created_at, adm.username
+            FROM announcements a
+            JOIN admin adm ON a.admin_id = adm.admin_id
+            ORDER BY a.created_at DESC
+        """)
+        announcements = cursor.fetchall()
+        
+    return render_template('student/announcement.html', announcements=announcements)
 
 @app.route('/Session')
 def Session():

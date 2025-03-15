@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE-edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Announcement</title>
+    <title>Admin - Announcement</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='admin/adminannouncement.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
@@ -36,29 +36,39 @@
                 <h1>Announcement</h1>
                 <button class="new-announcement-btn">Add Announcement</button>
             </div>
+
+            <!-- Add flash messages section -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                            <span class="close-alert">&times;</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
   
             <div class="announcement-section">
                 <div class="announcement-list">
+                    {% for announcement in announcements %}
                     <div class="announcement-item">
-                        <h3 class="author">CCS Admin</h3>
-                        <h4 class="title">Sit-in Monitoring System</h4>
-                        <p class="content">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor</p>
+                        <div class="announcement-header">
+                            <h3 class="author">{{ announcement[4] }}</h3>
+                            <div class="action-buttons">
+                                <button class="edit-btn" onclick="editAnnouncement({{ announcement[0] }}, '{{ announcement[1] }}', '{{ announcement[2] }}', '{{ announcement[4] }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="delete-btn" onclick="deleteAnnouncement({{ announcement[0] }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <h4 class="title">{{ announcement[1] }}</h4>
+                        <p class="content">{{ announcement[2] }}</p>
                         <div class="divider"></div>
                     </div>
-    
-                    <div class="announcement-item">
-                        <h3 class="author">CCS Admin</h3>
-                        <h4 class="title">Launching of the Sit-in Monitoring System</h4>
-                        <p class="content">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor</p>
-                        <div class="divider"></div>
-                    </div>
-    
-                    <div class="announcement-item">
-                        <h3 class="author">CCS Dean</h3>
-                        <h4 class="title">Laboratory Hours Update</h4>
-                        <p class="content">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor</p>
-                        <div class="divider"></div>
-                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -131,5 +141,45 @@
         });
 
         /*ADD ANNOUNCEMENT MODAL*/
+
+
+         // Close alert messages
+    document.querySelectorAll('.close-alert').forEach(button => {
+        button.addEventListener('click', () => {
+            button.parentElement.style.display = 'none';
+        });
+    });
+
+    // Enhanced delete announcement function
+    async function deleteAnnouncement(id) {
+        if (confirm('Are you sure you want to delete this announcement?')) {
+            try {
+                const response = await fetch(`/admin/announcement/delete/${id}`);
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    throw new Error('Failed to delete announcement');
+                }
+            } catch (error) {
+                alert('Error deleting announcement');
+            }
+        }
+    }
+
+    /* EDET  */
+
+    function editAnnouncement(id, title, content, author) {
+        // Fill the modal with existing data
+        document.getElementById('author').value = author;
+        document.getElementById('title').value = title;
+        document.getElementById('message').value = content;
+        
+        // Add announcement ID to the form
+        const form = document.querySelector('#announcementModal form');
+        form.action = `/admin/announcement/edit/${id}`;
+        
+        // Show the modal
+        modal.style.display = 'block';
+    }
 </script>
 </body>

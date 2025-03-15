@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sit-in Monitoring System - Student Registration Form</title>
+        <title>Student - Registration Form</title>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='student/register.css') }}">
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
@@ -12,10 +12,8 @@
         <div class="wrapper">
             <div class="register-container">
                 <div class="header">
-                    <div class="top-bar">
-                        <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>                  
-                    </div>
                     <div class="logo-title">
+                        <img src="{{ url_for('static', filename='images/yose.png') }}" alt="Logo" class="round-logo">
                         <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="Logo" class="round-logo">
                         <div class="title-container">
                             <h1>Student Registration Form</h1>

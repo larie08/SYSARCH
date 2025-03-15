@@ -51,48 +51,24 @@
                         <thead>
                             <tr>
                                 <th>ID Number</th>
-                                <th>Name</th>
-                                <th>Year Level</th>
+                                <th>First Name</th>
+                                <th>Middle Name</th>
+                                <th>Last Name</th>
                                 <th>Course</th>
+                                <th>Year Level</th>
                             </tr>
                         </thead>
                         <tbody>
+                            {% for student in students %}
                             <tr>
-                                <td>12345</td>
-                                <td>Sheks</td>
-                                <td>3rd Year</td>
-                                <td>BSIT</td>
+                                <td>{{ student[0] }}</td>
+                                <td>{{ student[1] }}</td>
+                                <td>{{ student[2] }}</td>
+                                <td>{{ student[3] }}</td>
+                                <td>{{ student[4] }}</td>
+                                <td>{{ student[5] }}</td>
                             </tr>
-                            <tr>
-                                <td>6789</td>
-                                <td>sdd</td>
-                                <td>1st Year</td>
-                                <td>BSCS</td>
-                            </tr>
-                            <tr>
-                                <td>6548</td>
-                                <td>ghgh</td>
-                                <td>2nd Year</td>
-                                <td>BSPSYCH</td>
-                            </tr>
-                            <tr>
-                                <td>3554</td>
-                                <td>fdg</td>
-                                <td>3rd Year</td>
-                                <td>BSN</td>
-                            </tr>
-                            <tr>
-                                <td>1854</td>
-                                <td>fgdfg</td>
-                                <td>4th Year</td>
-                                <td>BSIM</td>
-                            </tr>
-                            <tr>
-                                <td>1854</td>
-                                <td>lopel</td>
-                                <td>4th Year</td>
-                                <td>BSIT</td>
-                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                     <div class="pagination">
@@ -209,28 +185,50 @@
 
         function searchStudent() {
             const studentId = document.getElementById('studentId').value;
-            // This is a mock function - replace with actual API call
-            const mockStudentData = {
-                id: studentId,
-                name: 'Sheks',
-                purpose: 'CF',
-                laboratory: 'Lab 544',
-                remainingSession: 30
-            };
+            if (!studentId) {
+                alert('Please enter a student ID');
+                return;
+            }
+            
+            fetch(`/admin/search_student/${studentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    
+                    // Populate the sit-in form
+                    const studentDetails = document.getElementById('studentDetails');
+                    studentDetails.innerHTML = `
+                        <td>${data.id}</td>
+                        <td>${data.name}</td>
+                        <td>
+                            <select id="purpose" name="purpose" required>
+                                <option value="">Select Purpose</option>
+                                <option value="CF">CF</option>
+                                <option value="Research">Research</option>
+                                <option value="Assignment">Assignment</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select id="laboratory" name="laboratory" required>
+                                <option value="">Select Laboratory</option>
+                                <option value="Lab 544">Lab 544</option>
+                                <option value="Lab 545">Lab 545</option>
+                            </select>
+                        </td>
+                        <td>${data.remainingSession}</td>
+                    `;
 
-            // Populate the sit-in form
-            const studentDetails = document.getElementById('studentDetails');
-            studentDetails.innerHTML = `
-                <td>${mockStudentData.id}</td>
-                <td>${mockStudentData.name}</td>
-                <td>${mockStudentData.purpose}</td>
-                <td>${mockStudentData.laboratory}</td>
-                <td>${mockStudentData.remainingSession}</td>
-            `;
-
-            // Hide search modal and show sit-in modal
-            searchModal.style.display = 'none';
-            sitInModal.style.display = 'block';
+                    // Hide search modal and show sit-in modal
+                    searchModal.style.display = 'none';
+                    sitInModal.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Student not found. Please check the ID number.');
+                });
         }
 
         /*SIT IN MODAL*/

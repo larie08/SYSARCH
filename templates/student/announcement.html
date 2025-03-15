@@ -4,7 +4,7 @@
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE-edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sit-in Monitoring System - Announcement</title>
+        <title>Student - Announcement</title>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='student/announcement.css') }}">
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
@@ -37,30 +37,18 @@
                 <h1 class="header">Announcements</h1>
                
                 <div class="announcements-card">
+                    {% for announcement in announcements %}
                     <div class="announcement-item">
-                        <h3 class="author">CCS Admin</h3>
+                        <h3 class="author">{{ announcement[4] }}</h3>
                         <div class="announcement-content">
-                            <h4 class="title">Sit-in Monitoring System</h4>
-                            <p>ANDAM NA MO?</p>
+                            <h4 class="title">{{ announcement[1] }}</h4>
+                            <p>{{ announcement[2] }}</p>
                         </div>
                         <div class="divider"></div>
                     </div>
-                    <div class="announcement-item">
-                        <h3 class="author">CCS Admin</h3>
-                        <div class="announcement-content">
-                            <h4 class="title">Launching of the Sit-in Monitoring System</h4>
-                            <p>Important Announcement! We are excited to announce the launch of our new website!. Explore our latest products now.</p>                        </div>
-                        <div class="divider"></div>
-                    </div>
-                    <div class="announcement-item">
-                        <h3 class="author">CCS Dean</h3>
-                        <div class="announcement-content">
-                            <h4 class="title">Laboratory Hours Update</h4>
-                            <p>Laboratory operating hours have been extended during finals week. Check the new schedule posted.</p>
-                        </div>
-                        <div class="divider"></div>
-                    </div>
-                     
+                    {% endfor %}
+                </div>
+                
         <script>
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.querySelector('.main-content');
