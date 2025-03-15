@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE-edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin/reports.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo"><br>
+                <span class="admin-text">CCS Admin</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="active"><i class="fa-solid fa-file"></i></i>Reports</a></li>
+                <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
+                <li><a href="{{ url_for('admin_reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+            </ul>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
+            </div>
+        </nav>
+        <div class="main-content">
+            <div class="top-bar">
+                <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
+                <h1>College of Computer Studies Admin</h1>
+                <div class="announcement-badge">
+                    <i class="fas fa-bullhorn"><span>+ Announcements</span></i>
+                </div>
+            </div>
+<script>
+    /*SIDEBAR*/
+    const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        let isSidebarOpen = true;
+    
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.style.left = '0';
+                mainContent.style.marginLeft = '250px';
+            } else {
+                sidebar.style.left = '-250px';
+                mainContent.style.marginLeft = '0';
+            }
+        }
+    
+        sidebarToggle.addEventListener('click', toggleSidebar);
+</script>
+</body>

@@ -6,51 +6,64 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Sit-in Monitoring System - History</title>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-        <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="{{ url_for('static', filename='student/history.css') }}">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     </head>
     <body>
-        <div class="container">
-            <nav class="sidebar">
-                <ul>
-                    <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
-                    <li><a href="{{ url_for('Profile') }}">Profile</a></li>
-                    <li><a href="{{ url_for('Announcement') }}">Announcement</a></li>
-                    <li><a href="{{ url_for('Session') }}">Session</a></li>
-                    <li><a href="{{ url_for('History') }}">Sit-in History</a></li>
-                    <li><a href="{{ url_for('Reservation') }}">Reservation</a></li>
+        <div class="history-container">
+            <nav class="sidebar" id="sidebar">
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo">
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('Dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                    <li><a href="{{ url_for('Profile') }}"><i class="fas fa-user"></i>Profile</a></li>
+                    <li><a href="{{ url_for('Announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                    <li><a href="{{ url_for('Session') }}"><i class="fas fa-clock"></i>Session</a></li>
+                    <li><a href="{{ url_for('History') }}" class="active"><i class="fas fa-history"></i>Sit-in History</a></li>
+                    <li><a href="{{ url_for('Reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
                 </ul>
                 <div class="logout-section">
-                    <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
+                    <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
                 </div>
             </nav>
 
             <main class="main-content">
-             <h1>HISTORY PAGE</h1>
-            </main>
-        </div>
-
-        <div class="history-container">
-            <div class="search-section">
-                <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="Search...">
-                    <i class="fas fa-search"></i>
+                <div class="top-bar">
+                    <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
                 </div>
-            </div>
+                <h1 class="header">Sit-in History</h1>
+                <div class="history-card">
+                    <div class="search-container">
+                        <input type="text" placeholder="Search" class="search-input">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+            
+                    <div class="table-container">
+                        <div class="pagination-top">
+                            <span>Showing 1-10 of 100 entries</span>
+                            <div class="pagination-controls">
+                                <button class="page-btn"><i class="fas fa-chevron-left"></i></button>
+                                <button class="page-btn active">1</button>
+                                <button class="page-btn">2</button>
+                                <button class="page-btn">3</button>
+                                <button class="page-btn"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
 
-            <div class="table-container">
-                <table id="historyTable">
+            <table class="history-table">
+                <!--table id="historyTable"-->
                     <thead>
                         <tr>
-                            <th onclick="sortTable(0)">ID NUMBER <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(1)">NAME <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(2)">SIT-IN PURPOSE <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(3)">LABORATORY <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(4)">LOGIN <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(5)">LOGOUT <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(6)">DATE <i class="fas fa-sort"></i></th>
-                            <th>ACTION</th>
+                            <th onclick="sortTable(0)">ID Number <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(1)">Name <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(2)">Sit-in Purpose <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(3)">Laboratory <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(4)">Login <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(5)">Logout <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(6)">Date <i class="fas fa-sort"></i></th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -144,6 +157,25 @@
                 // Add your view details functionality here
                 console.log('Viewing details for ID:', id);
             }
+
+            //Nav bar
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            let isSidebarOpen = true;
+        
+            function toggleSidebar() {
+                isSidebarOpen = !isSidebarOpen;
+                if (isSidebarOpen) {
+                    sidebar.style.left = '0';
+                    mainContent.style.marginLeft = '250px';
+                } else {
+                    sidebar.style.left = '-250px';
+                    mainContent.style.marginLeft = '0';
+                }
+            }
+        
+            sidebarToggle.addEventListener('click', toggleSidebar);
         </script>
     </body>
 </html>

@@ -5,10 +5,9 @@
         <meta http-equiv="X-UA-Compatible" content="IE-edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Sit-in Monitoring System - Login</title>
-        <link rel="icon" type="image/png" href="{{ url_for('static', filename='/ccs.png') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-        <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     </head>
     <body>
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -28,29 +27,20 @@
                 </div>                    
                 <form action="{{ url_for('login') }}" method="POST">
                     <div class="input-box">
-                        <i class="fas fa-user"></i>
-                        <input type="text" id="username" name="username" class="input-field" required>
-                        <label for="username" class="label">Username</label>
+                        <input type="text" name="username" class="input-field" required>
+                        <label>Email</label>
                     </div>
                     <div class="input-box">
-                        <input type="password" id="password" name="password" class="input-field" required>
-                        <label for="password" class="label">Password</label>
-                        <i class="fas fa-lock"></i>
+                        <input type="password" name="password" class="input-field" required>
+                        <label>Password</label>
                     </div>
                     <div class="remember-forgot">
-                        <div class="remember-me">
-                            <input type="checkbox" id="remember">
-                            <label for="remember">Remember Me</label>
-                        </div>
-                        <div class="forgot">
-                            <a href="{{ url_for('forgot_password')}}">Forgot Password</a>
-                        </div>
+                        <label><input type="checkbox"> Remember Me</label>
+                        <a href="{{ url_for('forgot_password')}}" style="color: #CE9C01;">Forgot Password?</a>
                     </div>
-                    <div class="input-box">
-                        <input type="submit" class="input-submit" value="Login">
-                    </div>
+                    <button type="submit" class="input-submit">Log in</button>
                     <div class="register">
-                        <span>Don't have an account? <a href="{{ url_for('register')}}">Register</a></span>
+                        <span>Don't have an account? <a href="{{ url_for('register')}} " style="color: #CE9C01;" >Create an account</a></span>
                     </div>
                 </form>
             </div>

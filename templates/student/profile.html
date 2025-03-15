@@ -6,9 +6,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Sit-in Monitoring System - Student Profile</title>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-        <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
-        <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="{{ url_for('static', filename='student/profile.css') }}">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     </head>
     <body>
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -21,24 +21,31 @@
             {% endif %}
         {% endwith %}
 
-        <div class="container">
-            <nav class="sidebar">
-                <ul>
-                    <li><a href="{{ url_for('Dashboard') }}">Dashboard</a></li>
-                    <li><a href="{{ url_for('Profile') }}">Profile</a></li>
-                    <li><a href="{{ url_for('Announcement') }}">Announcement</a></li>
-                    <li><a href="{{ url_for('Session') }}">Session</a></li>
-                    <li><a href="{{ url_for('History') }}">Sit-in History</a></li>
-                    <li><a href="{{ url_for('Reservation') }}">Reservation</a></li>
+        <div class="profile-container">
+            <nav class="sidebar" id="sidebar">
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo">
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('Dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                    <li><a href="{{ url_for('Profile') }}" class="active"><i class="fas fa-user"></i>Profile</a></li>
+                    <li><a href="{{ url_for('Announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                    <li><a href="{{ url_for('Session') }}"><i class="fas fa-clock"></i>Session</a></li>
+                    <li><a href="{{ url_for('History') }}"><i class="fas fa-history"></i>Sit-in History</a></li>
+                    <li><a href="{{ url_for('Reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
                 </ul>
                 <div class="logout-section">
-                    <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
+                    <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
                 </div>
             </nav>
+
             <main class="main-content">
+                <div class="top-bar">
+                    <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>  
+                </div>
                 <h1>Student Profile</h1>
-                <div class="profile-container">
-                    <div class="profile-header">
+                <div class="profile-card">
+                    <div class="profile-image">
                         <form action="{{ url_for('save_photo') }}" method="POST" enctype="multipart/form-data" id="photo-form">
                             <div class="profile-image-upload">
                                 <img src="{{ url_for('static', filename='uploads/' + (user[9] if user[9] else 'default-profile.png')) }}" 
@@ -55,26 +62,48 @@
                                        accept="image/*"
                                        onchange="previewImage(this);">
                             </div>
-                            <button type="submit" class="save-photo-btn" id="save-photo-btn" style="display: none;">
-                                <i class="fas fa-save"></i> Save Photo
+                            <button type="submit" class="save-photo-btn" id="save-photo-btn">Save Photo
                             </button>
                         </form>
                     </div>
-                    <h3>{{ user[2] }} {{ user[3] }} {{ user[1] }}</h3><br>
-                    <p>Student ID: {{ user[0] }}</p><br>
-                    <p>Course: {{ user[4] }}</p><br>
-                    <p>Year Level: {{ user[5] }}</p><br>
-                    <p>Email: {{ user[6] }}</p><br>
-                    <p>Address: {{ user[7] }}</p><br>
-                    <p>Sessions: {{ user[8] }}</p><br>
-                    <button class="edit-btn" onclick="openModal()"><i class="fas fa-edit"></i> Edit Profile</button>
+                    <div class="profile-info">
+                        <div class="info-item">
+                            <p class="label">Name: </p>
+                            <p class="value">{{ user[2] }} {{ user[3] }} {{ user[1] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Student ID: </p>
+                            <p class="value">{{ user[0] }}</p>
+                        </div>         
+                        <div class="info-item">
+                            <p class="label">Course:</p>
+                            <p class="value">{{ user[4] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Year Level: </p>
+                            <p class="value">{{ user[5] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Email: </p>
+                            <p class="value">{{ user[6] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Address: </p>
+                            <p class="value">{{ user[7] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Sessions: </p>
+                            <p class="value">{{ user[8] }}</p>
+                        </div>
+                        <button class="edit-profile-btn" onclick="openModal()">Edit Profile</button>
+                    </div>
                 </div>
             </main>
         </div>
         <div id="editModal" class="modal">
             <div class="modal-content">
                 <span class="close" onclick="closeModal()">&times;</span>
-                <h2><i class="fas fa-user-edit"></i> Edit Profile</h2>
+                <h2></i> Edit Profile</h2>
                 <form action="{{ url_for('Profile') }}" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="user_id" value="{{ user[0] }}">
                     <div class="input-group">
@@ -92,13 +121,12 @@
                     <div class="input-group">
                         <label>Course:</label>
                         <select name="course">
-                            <option value="BSIT" {{ 'selected' if user[4] == 'BSIT' }}>Bachelor of Science in Information Technology</option>
-                            <option value="BSHM" {{ 'selected' if user[4] == 'BSHM' }}>Bachelor of Science in Hospitality Management</option>
-                            <option value="BSTM" {{ 'selected' if user[4] == 'BSTM' }}>Bachelor of Science in Tourism Management</option>
-                            <option value="BSCJ" {{ 'selected' if user[4] == 'BSCJ' }}>Bachelor of Science in Criminal Justice</option>
-                            <option value="BSED" {{ 'selected' if user[4] == 'BSED' }}>Bachelor of Science in Education</option>
-                            <option value="BSCS" {{ 'selected' if user[4] == 'BSCS' }}>Bachelor of Science in Computer Science</option>
-                            <option value="BSPYSCH" {{ 'selected' if user[4] == 'BSPYSCH' }}>Bachelor of Science in Psychology</option>
+                            <option value="Bachelor of Science in Information Technology" {{ 'selected' if user[4] == 'Bachelor of Science in Information Technology' }}>Bachelor of Science in Information Technology</option>
+                            <option value="Bachelor of Science in Computer Science" {{ 'selected' if user[4] == 'Bachelor of Science in Computer Science' }}>Bachelor of Science in Computer Science</option>
+                            <option value="Bachelor of Science in Nursing" {{ 'selected' if user[4] == 'Bachelor of Science in Nursing' }}>Bachelor of Science in Nursing</option>
+                            <option value="Bachelor of Science in Hospitality Management" {{ 'selected' if user[4] == 'Bachelor of Science in Hospitality Management' }}>Bachelor of Science in Hospitality Management</option>
+                            <option value="Bachelor of Science in Psychology" {{ 'selected' if user[4] == 'BSPYSCH' }}>Bachelor of Science in Psychology</option>
+                            <option value="Bachelor of Science in Education" {{ 'selected' if user[4] == 'Bachelor of Science in Education' }}>Bachelor of Science in Education</option>
                         </select>                        
                     </div>
                     <div class="input-group">
@@ -139,7 +167,6 @@
                         return;
                     }
 
-                    // Check file type
                     const fileType = input.files[0].type;
                     if (!fileType.startsWith('image/')) {
                         alert('Please select an image file (JPG, PNG, GIF)');
@@ -156,7 +183,6 @@
                 }
             }
 
-            // Optional: Add drag and drop support
             const dropZone = document.querySelector('.profile-image-upload');
             const fileInput = document.getElementById('photo-upload');
 
@@ -179,8 +205,6 @@
                     previewImage(fileInput);
                 }
             });
-
-            // Auto-hide alerts after 3 seconds
             document.addEventListener('DOMContentLoaded', function() {
                 const alerts = document.querySelectorAll('.alert');
                 alerts.forEach(function(alert) {
@@ -192,28 +216,25 @@
                     }, 3000);
                 });
             });
+
+            /*NAV*/
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        let isSidebarOpen = true;
+    
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.style.left = '0';
+                mainContent.style.marginLeft = '250px';
+            } else {
+                sidebar.style.left = '-250px';
+                mainContent.style.marginLeft = '0';
+            }
+        }
+    
+        sidebarToggle.addEventListener('click', toggleSidebar);
         </script>
-
-        <style>
-        .alert {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 25px;
-            border-radius: 5px;
-            z-index: 1000;
-            transition: opacity 0.3s ease;
-        }
-
-        .alert-success {
-            background-color: #4CAF50;
-            color: white;
-        }
-
-        .alert-error {
-            background-color: #f44336;
-            color: white;
-        }
-        </style>
     </body>
 </html>

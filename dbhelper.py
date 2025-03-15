@@ -21,9 +21,9 @@ def create_tables():
                 COURSE TEXT NOT NULL,
                 YEAR_LEVEL TEXT NOT NULL,
                 EMAIL TEXT UNIQUE NOT NULL,
-                Username TEXT UNIQUE NOT NULL,
-                Password TEXT NOT NULL,
-                sessions INTEGER DEFAULT 3
+                USERNAME TEXT UNIQUE NOT NULL,
+                PASSWORD TEXT NOT NULL,
+                SESSIONS INTEGER DEFAULT 3
            )
         """)
 
@@ -66,12 +66,12 @@ def check_user(username, password):
     conn = connect_db()
     cursor = conn.cursor()
     try:
-        cursor.execute('''
-            SELECT password FROM users 
-            WHERE username = ?
-        ''', (username,))
+        # Check if user exists in the users table
+        cursor.execute('SELECT id, username, password FROM users WHERE username = ?', (username,))
         result = cursor.fetchone()
-        return result and check_password_hash(result[0], password)
+        if result and check_password_hash(result[2], password):
+            return {"id": result[0], "username": result[1], "role": "user"}
+        return None
     finally:
         conn.close()
 
@@ -242,205 +242,126 @@ def get_user_by_id(student_id):
         return None
     finally:
         conn.close()
+#dbhelper para sa user end/students
 
-#dbhelper para sa staff end
-def add_staff(staff_data):
-    """Add a new staff member"""
-    try:
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO staff (
-                    staff_id, firstname, middlename, lastname, 
-                    email, username, password, role, photo
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                staff_data['staff_id'],
-                staff_data['firstname'],
-                staff_data['middlename'],
-                staff_data['lastname'],
-                staff_data['email'],
-                staff_data['username'],
-                generate_password_hash(staff_data['password']),
-                staff_data['role'],
-                staff_data.get('photo', None)
-            ))
-            conn.commit()
-            return True
-    except sqlite3.IntegrityError as e:
-        print(f"Error adding staff: {e}")
-        return False
 
-def get_staff_profile(staff_id):
-    """Get staff member profile"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT staff_id, firstname, middlename, lastname, 
-                   email, username, role, photo
-            FROM staff 
-            WHERE staff_id = ?
-        """, (staff_id,))
-        return cursor.fetchone()
-    finally:
-        conn.close()
 
-def update_reservation_status(reservation_id, new_status, staff_id, remarks=None):
-    """Update reservation status and record in history"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # First update the reservation status
-        cursor.execute("""
-            UPDATE reservations 
-            SET status = ? 
-            WHERE id = ?
-        """, (new_status, reservation_id))
-        
-        # Then record the change in status_history
-        cursor.execute("""
-            INSERT INTO status_history (
-                reservation_id, status, changed_by, remarks
-            ) VALUES (?, ?, ?, ?)
-        """, (reservation_id, new_status, staff_id, remarks))
-        
-        conn.commit()
-        return True
-    except Exception as e:
-        print(f"Error updating reservation status: {e}")
-        return False
-    finally:
-        conn.close()
 
-def get_pending_reservations():
-    """Get all pending reservations"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                r.id,
-                r.idno,
-                u.firstname,
-                u.lastname,
-                r.purpose,
-                r.lab,
-                r.time_in,
-                r.status
-            FROM reservations r
-            JOIN users u ON r.idno = u.idno
-            WHERE r.status = 'Pending'
-            ORDER BY r.time_in ASC
-        """)
-        return cursor.fetchall()
-    finally:
-        conn.close()
 
-def get_status_history(reservation_id):
-    """Get the status history for a reservation"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                sh.status,
-                sh.changed_at,
-                s.firstname || ' ' || s.lastname as staff_name,
-                sh.remarks
-            FROM status_history sh
-            JOIN staff s ON sh.changed_by = s.staff_id
-            WHERE sh.reservation_id = ?
-            ORDER BY sh.changed_at DESC
-        """, (reservation_id,))
-        return cursor.fetchall()
-    finally:
-        conn.close()
 
-def staff_login(username, password):
-    """Verify staff login credentials"""
+#ADMIN DBHELPER
+
+def check_admin_login(username, password):
+    conn = connect_db()
+    cursor = conn.cursor()
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT staff_id, password, firstname, lastname, role 
-            FROM staff 
-            WHERE username = ?
-        """, (username,))
-        staff = cursor.fetchone()
-        
-        if staff and staff['password'] == password:  # Using plain text for now
-            return {
-                'staff_id': staff['staff_id'],
-                'name': f"{staff['firstname']} {staff['lastname']}",
-                'role': staff['role']
-            }
+        cursor.execute('SELECT admin_id, username, password FROM admin WHERE username = ?', (username,))
+        result = cursor.fetchone()
+        if result and check_password_hash(result['password'], password):
+            return {"id": result['admin_id'], "username": result['username'], "role": "admin"}
         return None
     finally:
         conn.close()
 
-def get_pending_reservations():
-    """Get all pending sit-in reservations"""
-    try:
-        conn = get_db_connection()
+def admin_announcement():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        title = request.form.get('title')
+        message = request.form.get('message')
+        admin_id = session['admin_id']
+        
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO announcements (admin_id, title, message)
+                    VALUES (?, ?, ?)
+                """, (admin_id, title, message))
+                conn.commit()
+                flash('Announcement added successfully', 'success')
+            except Exception as e:
+                print(f"Error adding announcement: {e}")
+                flash('Failed to add announcement', 'error')
+                
+    # Fetch all announcements
+    with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT 
-                r.id,
-                r.idno,
-                u.firstname,
-                u.lastname,
-                u.course,
-                u.year_level,
-                r.purpose,
-                r.lab,
-                r.time_in,
-                r.status
-            FROM reservations r
-            JOIN users u ON r.idno = u.idno
-            WHERE r.status = 'Pending'
-            ORDER BY r.time_in ASC
+            SELECT a.announcement_id, a.title, a.message, a.created_at, adm.username
+            FROM announcements a
+            JOIN admin adm ON a.admin_id = adm.admin_id
+            ORDER BY a.created_at DESC
         """)
-        return cursor.fetchall()
-    finally:
-        conn.close()
+        announcements = cursor.fetchall()
+        
+    return render_template('adminannouncement.html', announcements=announcements)
 
-def add_announcement(title, content, staff_id):
-    """Add a new announcement"""
+
+def add_announcement(title, content):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO announcements (title, content, created_by)
-            VALUES (?, ?, ?)
-        """, (title, content, staff_id))
-        conn.commit()
-        return True
+        with connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO announcements (title, content, created_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            """, (title, content))
+            conn.commit()
+            return True
     except Exception as e:
         print(f"Error adding announcement: {e}")
         return False
-    finally:
-        conn.close()
 
-def get_announcements():
-    """Get all announcements with staff details"""
+def search_student(student_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                a.id,
-                a.title,
-                a.content,
-                s.firstname || ' ' || s.lastname as staff_name,
-                a.created_at
-            FROM announcements a
-            JOIN staff s ON a.created_by = s.staff_id
-            ORDER BY a.created_at DESC
-        """)
-        return cursor.fetchall()
-    finally:
-        conn.close()
+        with connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT u.*, 
+                       COALESCE(
+                           (SELECT available_sessions 
+                            FROM user_session_counts 
+                            WHERE student_idno = u.IDNO), 
+                           30
+                       ) as available_sessions
+                FROM users u
+                WHERE u.IDNO = ?
+            """, (student_id,))
+            return cursor.fetchone()
+    except Exception as e:
+        print(f"Error searching student: {e}")
+        return None
+
+def record_sit_in(student_id, admin_id, laboratory):
+    try:
+        with connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO sit_in_records (student_id, admin_id, laboratory, time_in)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            """, (student_id, admin_id, laboratory))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error recording sit-in: {e}")
+        return False
+
+def get_sit_in_history(limit=50):
+    try:
+        with connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT s.*, u.FIRSTNAME || ' ' || u.LASTNAME as student_name
+                FROM sit_in_records s
+                JOIN users u ON s.student_id = u.IDNO
+                ORDER BY time_in DESC
+                LIMIT ?
+            """, (limit,))
+            return cursor.fetchall()
+    except Exception as e:
+        print(f"Error fetching sit-in history: {e}")
+        return []
 
 
+#ADMIN DBHELPER

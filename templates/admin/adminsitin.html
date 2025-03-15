@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Sit-in</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin/adminsitin.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="CCS Logo" class="logo"><br>
+                <span class="admin-text">CCS Admin</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('admin_sitin') }}" class="active"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
+                <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
+                <li><a href="{{ url_for('admin_reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+            </ul>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
+            </div>
+        </nav>
+
+        <div class="main-content">
+            <div class="content-header">
+                <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>  
+                <h1>Sit-in</h1>
+            </div>
+
+            <div class="content-body">
+                <div class="department-header">
+                    <h2>College of Computer Studies Department</h2>
+                    <p>Enrolled Students</p>
+                </div>
+
+                <div class="search-section">
+                    <input type="text" placeholder="Search" class="search-input">
+                    <button class="sit-in-btn">Sit-in Student</button>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID Number</th>
+                                <th>Name</th>
+                                <th>Year Level</th>
+                                <th>Course</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>12345</td>
+                                <td>Sheks</td>
+                                <td>3rd Year</td>
+                                <td>BSIT</td>
+                            </tr>
+                            <tr>
+                                <td>6789</td>
+                                <td>sdd</td>
+                                <td>1st Year</td>
+                                <td>BSCS</td>
+                            </tr>
+                            <tr>
+                                <td>6548</td>
+                                <td>ghgh</td>
+                                <td>2nd Year</td>
+                                <td>BSPSYCH</td>
+                            </tr>
+                            <tr>
+                                <td>3554</td>
+                                <td>fdg</td>
+                                <td>3rd Year</td>
+                                <td>BSN</td>
+                            </tr>
+                            <tr>
+                                <td>1854</td>
+                                <td>fgdfg</td>
+                                <td>4th Year</td>
+                                <td>BSIM</td>
+                            </tr>
+                            <tr>
+                                <td>1854</td>
+                                <td>lopel</td>
+                                <td>4th Year</td>
+                                <td>BSIT</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination">
+                        <button class="pagination-btn"><i class="fas fa-chevron-left"></i></button>
+                        <button class="pagination-btn active">1</button>
+                        <button class="pagination-btn">2</button>
+                        <button class="pagination-btn">3</button>
+                        <span class="pagination-dots">...</span>
+                        <button class="pagination-btn"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Search Modal -->
+    <div class="modal" id="searchModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Search Student</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="studentId">Student ID Number:</label>
+                    <input type="text" id="studentId" name="studentId" required>
+                </div>
+                <button type="button" class="search-button" onclick="searchStudent()">Search</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sit-in Form Modal -->
+    <div class="modal" id="sitInModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Sit-in Form</h2>
+                <span class="close-btn-sitin">&times;</span>
+            </div>
+            <div class="modal-body">
+                <table class="sit-in-table">
+                    <thead>
+                        <tr>
+                            <th>ID Number</th>
+                            <th>Name</th>
+                            <th>Purpose</th>
+                            <th>Laboratory</th>
+                            <th>Remaining Session</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="studentDetails">
+                            <!-- This will be populated by JavaScript -->
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" class="sit-in-button">Sit-in Student</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        /*SIDEBAR*/
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        let isSidebarOpen = true;
+    
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.style.left = '0';
+                mainContent.style.marginLeft = '250px';
+            } else {
+                sidebar.style.left = '-250px';
+                mainContent.style.marginLeft = '0';
+            }
+        }
+    
+        sidebarToggle.addEventListener('click', toggleSidebar);
+
+
+        /*SIT IN MODAL*/
+
+        const searchModal = document.getElementById('searchModal');
+        const sitInModal = document.getElementById('sitInModal');
+        const sitInBtn = document.querySelector('.sit-in-btn');
+        const closeBtn = document.querySelector('.close-btn');
+        const closeBtnSitIn = document.querySelector('.close-btn-sitin');
+
+        sitInBtn.addEventListener('click', () => {
+            searchModal.style.display = 'block';
+        });
+
+        closeBtn.addEventListener('click', () => {
+            searchModal.style.display = 'none';
+        });
+
+        closeBtnSitIn.addEventListener('click', () => {
+            sitInModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === searchModal) {
+                searchModal.style.display = 'none';
+            }
+            if (e.target === sitInModal) {
+                sitInModal.style.display = 'none';
+            }
+        });
+
+        function searchStudent() {
+            const studentId = document.getElementById('studentId').value;
+            // This is a mock function - replace with actual API call
+            const mockStudentData = {
+                id: studentId,
+                name: 'Sheks',
+                purpose: 'CF',
+                laboratory: 'Lab 544',
+                remainingSession: 30
+            };
+
+            // Populate the sit-in form
+            const studentDetails = document.getElementById('studentDetails');
+            studentDetails.innerHTML = `
+                <td>${mockStudentData.id}</td>
+                <td>${mockStudentData.name}</td>
+                <td>${mockStudentData.purpose}</td>
+                <td>${mockStudentData.laboratory}</td>
+                <td>${mockStudentData.remainingSession}</td>
+            `;
+
+            // Hide search modal and show sit-in modal
+            searchModal.style.display = 'none';
+            sitInModal.style.display = 'block';
+        }
+
+        /*SIT IN MODAL*/
+    </script>
+</body>
+</html>

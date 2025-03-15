@@ -20,6 +20,231 @@ with app.app_context():
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+#admin route
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        # First check admin credentials
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM admin WHERE username = ? AND password = ?", (username, password))
+            admin = cursor.fetchone()
+            
+            if admin:
+                session['admin_id'] = admin[0]
+                session['admin_username'] = admin[1]
+                return redirect(url_for('admin_dashboard'))
+        
+        # If not admin, check student credentials
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT IDNO, Password, username FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+            
+            if user:
+                session['username'] = username
+                session['student_id'] = user[0]
+                return redirect(url_for('Dashboard'))
+            
+        flash("Invalid credentials. Please try again.", "error")
+    
+    return render_template('login.html')
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        # Get total registered students
+        cursor.execute("SELECT COUNT(*) FROM users")
+        total_students = cursor.fetchone()[0]
+        
+        # Get current sit-ins
+        cursor.execute("SELECT COUNT(*) FROM reservations WHERE status = 'Active'")
+        current_sitins = cursor.fetchone()[0]
+        
+        # Get total sit-ins
+        cursor.execute("SELECT COUNT(*) FROM reservations")
+        total_sitins = cursor.fetchone()[0]
+        
+        # Get monthly statistics for labs
+        cursor.execute("""
+            SELECT strftime('%m', time_in) as month, lab, COUNT(*) as count
+            FROM reservations
+            GROUP BY month, lab
+            ORDER BY month
+        """)
+        lab_stats = cursor.fetchall()
+        
+    return render_template('admin/admindashboard.html', 
+                         total_students=total_students,
+                         current_sitins=current_sitins,
+                         total_sitins=total_sitins,
+                         lab_stats=lab_stats)
+
+@app.route('/admin/sit-in')
+def admin_sitin():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('admin/adminsitin.html')
+
+@app.route('/admin/reports')
+def admin_reports():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('admin/reports.html')
+
+@app.route('/admin/feedback')
+def admin_feedback():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('admin/feedback.html')
+
+@app.route('/admin/announcement', methods=['GET', 'POST'])
+def admin_announcement():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        title = request.form.get('title')
+        message = request.form.get('message')
+        admin_id = session['admin_id']
+        
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO announcements (admin_id, title, message)
+                    VALUES (?, ?, ?)
+                """, (admin_id, title, message))
+                conn.commit()
+                flash('Announcement added successfully', 'success')
+            except Exception as e:
+                print(f"Error adding announcement: {e}")
+                flash('Failed to add announcement', 'error')
+                
+    # Fetch all announcements for display
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT a.announcement_id, a.title, a.message, a.created_at, adm.username
+            FROM announcements a
+            JOIN admin adm ON a.admin_id = adm.admin_id
+            ORDER BY a.created_at DESC
+        """)
+        announcements = cursor.fetchall()
+        
+    return render_template('admin/adminannouncement.html', announcements=announcements)
+
+@app.route('/admin/announcement/delete/<int:announcement_id>')
+def delete_announcement(announcement_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM announcements WHERE announcement_id = ?", (announcement_id,))
+            conn.commit()
+            flash('Announcement deleted successfully', 'success')
+        except Exception as e:
+            print(f"Error deleting announcement: {e}")
+            flash('Failed to delete announcement', 'error')
+            
+    return redirect(url_for('admin_announcement'))
+
+@app.route('/admin/add_announcement', methods=['POST'])
+def admin_add_announcement():
+    if 'admin_id' not in session:
+        return redirect(url_for('admin_login'))
+        
+    title = request.form.get('title')
+    content = request.form.get('content')
+    
+    if add_announcement(title, content):
+        flash('Announcement added successfully', 'success')
+    else:
+        flash('Failed to add announcement', 'error')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/sit_in_student', methods=['GET', 'POST'])
+def admin_sit_in_student():
+    if 'admin_id' not in session:
+        return redirect(url_for('admin_login'))
+        
+    if request.method == 'POST':
+        student_id = request.form.get('student_id')
+        laboratory = request.form.get('laboratory')
+        
+        student = search_student(student_id)
+        if not student:
+            flash('Student not found', 'error')
+            return redirect(url_for('admin_sit_in_student'))
+            
+        if student['available_sessions'] <= 0:
+            flash('Student has no remaining sessions', 'error')
+            return redirect(url_for('admin_sit_in_student'))
+            
+        if update_sessions_on_reservation(student_id) and record_sit_in(student_id, session['admin_id'], laboratory):
+            flash('Student successfully logged for sit-in', 'success')
+        else:
+            flash('Failed to record sit-in', 'error')
+            
+    return render_template('admin/adminsitin.html')
+
+@app.route('/admin/reservation')
+def admin_reservation():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                r.id,
+                r.idno,
+                u.firstname || ' ' || u.lastname as student_name,
+                r.purpose,
+                r.lab,
+                r.time_in,
+                r.status,
+                r.time_out
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            ORDER BY r.time_in DESC
+        """)
+        reservations = cursor.fetchall()
+        
+        reservation_list = []
+        for res in reservations:
+            reservation_list.append({
+                'id': res[0],
+                'student_id': res[1],
+                'student_name': res[2],
+                'purpose': res[3],
+                'laboratory': res[4],
+                'time_in': res[5],
+                'status': res[6],
+                'time_out': res[7] if res[7] else 'Not logged out'
+            })
+            
+    return render_template('admin/adminreservation.html', reservations=reservation_list)
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_id', None)
+    session.pop('admin_username', None)
+    return redirect(url_for('admin_login'))
+
+#admin route
+
+
 #route for students end/user end
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -36,7 +261,7 @@ def index():
         """)
         reservations = cursor.fetchall()
 
-    return render_template('index.html', reservations=reservations)
+    return render_template('student/index.html', reservations=reservations)
 
 @app.route('/Dashboard')
 def Dashboard():
@@ -60,7 +285,7 @@ def Dashboard():
         
         print(f"Debug - Found reservations: {reservations}")
     
-    return render_template('index.html', 
+    return render_template('student/index.html', 
                          username=session['username'],
                          reservations=reservations)
 
@@ -113,7 +338,7 @@ def Profile():
 
     user_profile = get_user_profile(session['student_id'])
     print("User profile data:", user_profile) 
-    return render_template('profile.html', user=user_profile)
+    return render_template('student/profile.html', user=user_profile)
 
 @app.route('/save_photo', methods=['POST'])
 def save_photo():
@@ -169,13 +394,13 @@ def save_photo():
 def Announcement():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('announcement.html')
+    return render_template('student/announcement.html')
 
 @app.route('/Session')
 def Session():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('session.html')
+    return render_template('student/session.html')
 
 @app.route('/History')
 def History():
@@ -213,7 +438,7 @@ def History():
                 'date': record[7]
             })
             
-    return render_template('history.html', history=history)
+    return render_template('student/history.html', history=history)
 
 @app.route('/Reservation', methods=['GET', 'POST'])
 def Reservation():
@@ -269,7 +494,7 @@ def Reservation():
             flash("No remaining sessions. Please contact an admin.", "error")
 
     conn.close()
-    return render_template('reservation.html', user=user_data)
+    return render_template('student/reservation.html', user=user_data)
 
 @app.route('/submit_reservation', methods=['POST'])
 def submit_reservation():
@@ -318,29 +543,6 @@ def submit_reservation():
 
     return redirect(url_for('Dashboard'))
 
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT IDNO, Password, Username FROM users WHERE Username = ?", (username,))
-            user = cursor.fetchone()
-            
-            if user:  
-                session['username'] = username
-                session['student_id'] = user[0]
-                print(f"Login route: Setting student_id to {user[0]}")
-                print(f"Session contents: {session}")
-                return redirect(url_for('Dashboard'))
-            
-        flash("Invalid credentials. Please try again.", "error")
-    
-    return render_template('login.html')
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -359,10 +561,9 @@ def register():
         if add_user(user_data):
             flash("Registration successful! Please log in.", "success")
             return redirect(url_for('login'))
-        
-        flash("Registration failed - Username/Email already exists.", "error")
     
-    return render_template('register.html')
+    
+    return render_template('student/register.html')
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
@@ -387,58 +588,6 @@ def forgot_password():
 def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
-
-#route for staff end
-@app.route('/staff/login', methods=['GET', 'POST'])
-def staff_login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        staff = staff_login(username, password)
-        if staff:
-            session['staff_id'] = staff['staff_id']
-            session['staff_role'] = staff['role']
-            session['staff_name'] = staff['name']
-            return redirect(url_for('staff_dashboard'))
-        
-        flash('Invalid credentials', 'error')
-    return render_template('staff/login.html')
-
-@app.route('/staff/dashboard')
-def staff_dashboard():
-    if 'staff_id' not in session:
-        return redirect(url_for('staff_login'))
-    
-    pending_reservations = get_pending_reservations()
-    return render_template('staff/dashboard.html', 
-                         reservations=pending_reservations,
-                         staff_name=session.get('staff_name'))
-
-@app.route('/staff/process_reservation', methods=['POST'])
-def process_reservation():
-    if 'staff_id' not in session:
-        return redirect(url_for('staff_login'))
-    
-    reservation_id = request.form.get('reservation_id')
-    action = request.form.get('action')
-    remarks = request.form.get('remarks')
-    
-    status = 'Approved' if action == 'approve' else 'Rejected'
-    
-    if update_reservation_status(reservation_id, status, session['staff_id'], remarks):
-        flash(f'Reservation {status.lower()} successfully', 'success')
-    else:
-        flash('Error processing reservation', 'error')
-    
-    return redirect(url_for('staff_dashboard'))
-
-@app.route('/staff/logout')
-def staff_logout():
-    session.pop('staff_id', None)
-    session.pop('staff_role', None)
-    session.pop('staff_name', None)
-    return redirect(url_for('staff_login'))
 
 if __name__ == '__main__':
     app.run(debug=True)
