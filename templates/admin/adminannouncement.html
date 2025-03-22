@@ -21,10 +21,10 @@
             <ul class="nav-links">
                 <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
                 <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}" class="active"><i class="fas fa-bullhorn"></i>Announcement</a></li>
                 <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
                 <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
-                <li><a href="{{ url_for('admin_reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
             </ul>
             <div class="logout-section">
                 <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
@@ -81,11 +81,11 @@
                     </div>
                     <form action="{{ url_for('admin_announcement') }}" method="POST">
                         <div class="form-group">
-                            <label for="author">Author:</label>
-                            <select id="author" name="author" required>
-                                <option value="" disabled selected>Select Author</option>
-                                <option value="CCS Admin">CCS Admin</option>
-                                <option value="CCS Dean">CCS Dean</option>
+                            <label for="author">Author</label>
+                            <select class="form-control" id="author" name="author" required>
+                                {% for author in authors %}
+                                <option value="{{ author }}">{{ author }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="form-group">

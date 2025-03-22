@@ -40,6 +40,19 @@ def create_tables():
             )
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                reservation_id INTEGER,
+                student_id TEXT,
+                feedback TEXT,
+                laboratory TEXT,
+                date TEXT,
+                FOREIGN KEY (student_id) REFERENCES users (idno),
+                FOREIGN KEY (reservation_id) REFERENCES reservations (id)
+            )
+        """)
+
         try:
             cursor.execute("ALTER TABLE reservations ADD COLUMN time_out DATETIME")
         except sqlite3.OperationalError:
@@ -242,6 +255,40 @@ def get_user_by_id(student_id):
         return None
     finally:
         conn.close()
+
+def submit_feedback(student_id, reservation_id, feedback_text, laboratory, date):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO feedback (student_id, reservation_id, feedback, laboratory, date)
+                VALUES (?, ?, ?, ?, ?)
+            """, (student_id, reservation_id, feedback_text, laboratory, date))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error submitting feedback: {e}")
+        return False
+
+def get_all_feedback():
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    u.idno,
+                    f.laboratory,
+                    f.date,
+                    f.feedback
+                FROM feedback f
+                JOIN users u ON f.student_id = u.idno
+                ORDER BY f.date DESC
+            """)
+            feedbacks = cursor.fetchall()
+            return feedbacks
+    except Exception as e:
+        print(f"Error fetching feedback: {e}")
+        return []
 #dbhelper para sa user end/students
 
 

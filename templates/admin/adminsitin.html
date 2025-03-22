@@ -19,10 +19,10 @@
             <ul class="nav-links">
                 <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
                 <li><a href="{{ url_for('admin_sitin') }}" class="active"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
                 <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
                 <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
-                <li><a href="{{ url_for('admin_reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
             </ul>
             <div class="logout-section">
                 <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
@@ -30,20 +30,18 @@
         </nav>
 
         <div class="main-content">
-            <div class="content-header">
+            <div class="header">
                 <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>  
                 <h1>Sit-in</h1>
             </div>
 
             <div class="content-body">
                 <div class="department-header">
-                    <h2>College of Computer Studies Department</h2>
-                    <p>Enrolled Students</p>
-                </div>
-
-                <div class="search-section">
-                    <input type="text" placeholder="Search" class="search-input">
-                    <button class="sit-in-btn">Sit-in Student</button>
+                    <div class="header-left">
+                        <h2>College of Computer Studies Department</h2>
+                        <p>Student Reservations</p>
+                        <button class="sit-in-btn">Add Sit-in</button>
+                    </div>
                 </div>
 
                 <div class="table-container">
@@ -51,34 +49,28 @@
                         <thead>
                             <tr>
                                 <th>ID Number</th>
-                                <th>First Name</th>
-                                <th>Middle Name</th>
-                                <th>Last Name</th>
-                                <th>Course</th>
-                                <th>Year Level</th>
+                                <th>Name</th>
+                                <th>Purpose</th>
+                                <th>Laboratory</th>
+                                <th>Time</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for student in students %}
+                            {% for reservation in reservations %}
                             <tr>
-                                <td>{{ student[0] }}</td>
-                                <td>{{ student[1] }}</td>
-                                <td>{{ student[2] }}</td>
-                                <td>{{ student[3] }}</td>
-                                <td>{{ student[4] }}</td>
-                                <td>{{ student[5] }}</td>
+                                <td>{{ reservation.idno }}</td>
+                                <td>{{ reservation.name }}</td>
+                                <td>{{ reservation.purpose }}</td>
+                                <td>{{ reservation.lab }}</td>
+                                <td>{{ reservation.time_in }}</td>
+                                <td class="{% if reservation.status == 'Pending' %}status-pending{% elif reservation.status == 'Completed' %}status-completed{% elif reservation.status == 'Active' %}status-sitin{% endif %}">
+                                    {% if reservation.status == 'Active' %}<span style="color: #4CAF50; font-weight: 600;">Sit-in</span>{% else %}{{ reservation.status }}{% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                    <div class="pagination">
-                        <button class="pagination-btn"><i class="fas fa-chevron-left"></i></button>
-                        <button class="pagination-btn active">1</button>
-                        <button class="pagination-btn">2</button>
-                        <button class="pagination-btn">3</button>
-                        <span class="pagination-dots">...</span>
-                        <button class="pagination-btn"><i class="fas fa-chevron-right"></i></button>
-                    </div>
                 </div>
                 </div>
             </div>
@@ -206,22 +198,27 @@
                         <td>
                             <select id="purpose" name="purpose" required>
                                 <option value="">Select Purpose</option>
-                                <option value="CF">CF</option>
-                                <option value="Research">Research</option>
-                                <option value="Assignment">Assignment</option>
+                                <option value="C#">C#</option>
+                                <option value="C">C</option>
+                                <option value="ASP.NET">ASP.NET</option>
+                                <option value="Java">Java</option>
+                                <option value="Php">Php</option>
                             </select>
                         </td>
                         <td>
                             <select id="laboratory" name="laboratory" required>
                                 <option value="">Select Laboratory</option>
-                                <option value="Lab 544">Lab 544</option>
-                                <option value="Lab 545">Lab 545</option>
+                                    <option value="Lab 542">Lab 542</option>
+                                    <option value="Lab 544">Lab 544</option>
+                                    <option value="Lab 526">Lab 526</option>
+                                    <option value="Lab 528">Lab 528</option>
+                                    <option value="Lab 530">Lab 530</option>
                             </select>
                         </td>
                         <td>${data.remainingSession}</td>
                     `;
 
-                    // Hide search modal and show sit-in modal
+              
                     searchModal.style.display = 'none';
                     sitInModal.style.display = 'block';
                 })
@@ -232,6 +229,45 @@
         }
 
         /*SIT IN MODAL*/
+
+        const sitInButton = document.querySelector('.sit-in-button');
+        
+        sitInButton.addEventListener('click', () => {
+            const studentId = document.querySelector('#studentDetails td:first-child').textContent;
+            const purpose = document.querySelector('#purpose').value;
+            const laboratory = document.querySelector('#laboratory').value;
+        
+            if (!purpose || !laboratory) {
+                alert('Please select both purpose and laboratory');
+                return;
+            }
+        
+            fetch('/admin/sit_in_student', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    purpose: purpose,
+                    laboratory: laboratory
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Student successfully registered for sit-in');
+                    sitInModal.style.display = 'none';
+                    window.location.href = '/admin/current-sitin';  // Redirect to current sit-in page
+                } else {
+                    alert(data.error || 'Failed to register student for sit-in');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while processing the request');
+            });
+        });       
     </script>
 </body>
 </html>

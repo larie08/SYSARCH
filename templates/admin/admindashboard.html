@@ -21,10 +21,10 @@
             <ul class="nav-links">
                 <li><a href="{{ url_for('admin_dashboard') }}" class="active"><i class="fas fa-th-large"></i>Dashboard</a></li>
                 <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
                 <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
                 <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
-                <li><a href="{{ url_for('admin_reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
             </ul>
             <div class="logout-section">
                 <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
@@ -33,24 +33,26 @@
         <div class="main-content">
             <div class="top-bar">
                 <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
-                <h1>College of Computer Studies Admin</h1>
                 <div class="announcement-badge">
                     <span>Add Announcement</span></i>
                 </div>
             </div>
 
+            <div class="header">
+                <h1>Announcement</h1>
+
             <div class="stats-container">
                 <div class="stat-card">
                     <h3>Student Registered:</h3>
-                    <p class="stat-number">183</p>
+                    <p class="stat-number">{{ total_students }}</p>
                 </div>
                 <div class="stat-card">
                     <h3>Current Sit-in</h3>
-                    <p class="stat-number">0</p>
+                    <p class="stat-number">{{ current_sitins }}</p>
                 </div>
                 <div class="stat-card">
-                    <h3>Current Sit-in</h3>
-                    <p class="stat-number">78</p>
+                    <h3>Total Sit-in</h3>
+                    <p class="stat-number">{{ total_sitins }}</p>
                 </div>
             </div>
 
@@ -95,38 +97,41 @@
     <script>
         /*CHART*/
         const ctx = document.getElementById('sitInChart').getContext('2d');
+        const chartData = {{ chart_data | tojson }};
+        const months = {{ months | tojson }};
+        
         const sitInChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.'],
+                labels: months,
                 datasets: [
                     {
-                        label: 'Lab 544',
-                        data: [12, 19, 15, 25, 22, 30, 15],
+                        label: 'C#',
+                        data: chartData['C#'],
                         borderColor: '#03FCF8',
                         tension: 0.4
                     },
                     {
-                        label: 'Lab 542',
-                        data: [15, 12, 25, 18, 28, 20, 22],
+                        label: 'C',
+                        data: chartData['C'],
                         borderColor: '#03FCA1',
                         tension: 0.4
                     },
                     {
-                        label: 'Lab 530',
-                        data: [12, 19, 15, 25, 22, 30, 15],
+                        label: 'ASP.NET',
+                        data: chartData['ASP.NET'],
                         borderColor: '#0384FC',
                         tension: 0.4
                     },
                     {
-                        label: 'Lab 528',
-                        data: [12, 19, 15, 25, 22, 30, 15],
+                        label: 'Java',
+                        data: chartData['Java'],
                         borderColor: '#FC8803',
                         tension: 0.4
                     },
                     {
-                        label: 'Lab 526',
-                        data: [12, 19, 15, 25, 22, 30, 15],
+                        label: 'Php',
+                        data: chartData['Php'],
                         borderColor: '#FC038C',
                         tension: 0.4
                     },
@@ -142,13 +147,15 @@
                 },
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
                     }
                 }
             }
         });
-
-
+        /*CHART*/
 
         /*SIDEBAR*/
         const sidebar = document.getElementById('sidebar');

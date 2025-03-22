@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='admin/reports.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin/feedback.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -23,8 +23,8 @@
                 <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
                 <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
-                <li><a href="{{ url_for('admin_reports') }}" class="active"><i class="fa-solid fa-file"></i></i>Reports</a></li>
-                <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
+                <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
+                <li><a href="{{ url_for('admin_feedback') }}" class="active"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
             </ul>
             <div class="logout-section">
                 <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
@@ -33,10 +33,39 @@
         <div class="main-content">
             <div class="top-bar">
                 <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
-                <h1>College of Computer Studies Admin</h1>
-                <div class="announcement-badge">
-                    <i class="fas fa-bullhorn"><span>+ Announcements</span></i>
-                </div>
+            </div>
+            <div class="header">
+                <h1>Feedback Report</h1>
+                <button class="print-btn" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+
+            <div class="feedback-container">
+                <table class="feedback-table">
+                    <thead>
+                        <tr>
+                            <th>ID Number</th>
+                            <th>Student Name</th>
+                            <th>Laboratory</th>
+                            <th>Date</th>
+                            <th>Feedback Message</th>
+                            <th>Submitted At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for feedback in feedbacks %}
+                        <tr>
+                            <td>{{ feedback.idno }}</td>
+                            <td>{{ feedback.student_name }}</td>
+                            <td>{{ feedback.laboratory }}</td>
+                            <td>{{ feedback.date }}</td>
+                            <td>{{ feedback.message }}</td>
+                            <td>{{ feedback.submitted_at }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
 <script>
     /*SIDEBAR*/

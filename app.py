@@ -57,15 +57,16 @@ def login():
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if 'admin_id' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('admin_login'))
         
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
-        # Get total registered students
+        
+        # Get total students
         cursor.execute("SELECT COUNT(*) FROM users")
         total_students = cursor.fetchone()[0]
         
-        # Get current sit-ins
+        # Change 'Ongoing' to 'Active' to match the status used in sit-in
         cursor.execute("SELECT COUNT(*) FROM reservations WHERE status = 'Active'")
         current_sitins = cursor.fetchone()[0]
         
@@ -73,15 +74,58 @@ def admin_dashboard():
         cursor.execute("SELECT COUNT(*) FROM reservations")
         total_sitins = cursor.fetchone()[0]
         
-        # Get monthly statistics for labs
+        # Get purpose counts per month
         cursor.execute("""
-            SELECT strftime('%m', time_in) as month, lab, COUNT(*) as count
+            SELECT 
+                strftime('%m', time_in) as month,
+                purpose,
+                COUNT(*) as count
             FROM reservations
-            GROUP BY month, lab
-            ORDER BY month
+            WHERE strftime('%Y', time_in) = strftime('%Y', 'now')
+            GROUP BY strftime('%m', time_in), purpose
+            ORDER BY month, purpose
         """)
-        lab_stats = cursor.fetchall()
+        purpose_data = cursor.fetchall()
         
+        # Format data for the chart
+        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        purposes = ['C#', 'C', 'ASP.NET', 'Java', 'Php']
+        
+        chart_data = {purpose: [0] * 12 for purpose in purposes}
+        
+        for month_num, purpose, count in purpose_data:
+            month_index = int(month_num) - 1
+            if purpose in chart_data:
+                chart_data[purpose][month_index] = count
+
+    return render_template('admin/admindashboard.html',
+                         chart_data=chart_data,
+                         months=months,
+                         total_students=total_students,
+                         current_sitins=current_sitins,
+                         total_sitins=total_sitins)
+        
+    # Get total registered students
+    cursor.execute("SELECT COUNT(*) FROM users")
+    total_students = cursor.fetchone()[0]
+    
+    # Get current sit-ins
+    cursor.execute("SELECT COUNT(*) FROM reservations WHERE status = 'Active'")
+    current_sitins = cursor.fetchone()[0]
+    
+    # Get total sit-ins
+    cursor.execute("SELECT COUNT(*) FROM reservations")
+    total_sitins = cursor.fetchone()[0]
+    
+    # Get monthly statistics for labs
+    cursor.execute("""
+        SELECT strftime('%m', time_in) as month, lab, COUNT(*) as count
+        FROM reservations
+        GROUP BY month, lab
+        ORDER BY month
+    """)
+    lab_stats = cursor.fetchall()
+    
     return render_template('admin/admindashboard.html', 
                          total_students=total_students,
                          current_sitins=current_sitins,
@@ -96,13 +140,30 @@ def admin_sitin():
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT idno, firstname, middlename, lastname, course, year_level 
-            FROM users 
-            ORDER BY lastname ASC
+            SELECT r.id, r.idno, u.firstname, u.lastname, r.purpose, r.lab, r.time_in, 
+                   CASE 
+                       WHEN r.status = 'Active' THEN 'Sit-in'
+                       ELSE r.status 
+                   END as status
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            ORDER BY r.time_in DESC
         """)
-        students = cursor.fetchall()
+        rows = cursor.fetchall()
+        
+        reservations = []
+        for row in rows:
+            reservations.append({
+                'id': row[0],
+                'idno': row[1],
+                'name': f"{row[2]} {row[3]}",
+                'purpose': row[4],
+                'lab': row[5],
+                'time_in': row[6],
+                'status': row[7]
+            })
     
-    return render_template('admin/adminsitin.html', students=students)
+    return render_template('admin/adminsitin.html', reservations=reservations)
 
 @app.route('/admin/search_student/<student_id>')
 def search_student(student_id):
@@ -112,31 +173,36 @@ def search_student(student_id):
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
-            # Modified query to ensure proper column selection and matching
             cursor.execute("""
-                SELECT idno, firstname, middlename, lastname, course, year_level, sessions 
+                SELECT idno, firstname, middlename, lastname, course, year_level, 
+                       COALESCE(sessions, 0) as sessions 
                 FROM users 
                 WHERE idno = ?
             """, (student_id,))
             student = cursor.fetchone()
             
             if student:
-                # Include middlename in the full name if available
                 full_name = f"{student[1]} {student[2] if student[2] else ''} {student[3]}".strip()
+                sessions_remaining = int(student[6] or 0)  # Convert to integer with null safety
+                
+                if sessions_remaining <= 0:
+                    message = "Student has reached maximum session limit"
+                else:
+                    message = f"Student has {sessions_remaining} sessions remaining"
+                    
                 return jsonify({
                     'id': student[0],
                     'name': full_name,
                     'course': student[4],
                     'year_level': student[5],
-                    'remainingSession': student[6] if student[6] is not None else 30
+                    'remainingSession': sessions_remaining,
+                    'message': message
                 })
             
-            # If no student found, return specific error
-            print(f"No student found with ID: {student_id}")  # Debug print
             return jsonify({'error': f'No student found with ID: {student_id}'}), 404
             
     except Exception as e:
-        print(f"Database error: {e}")  # Debug print
+        print(f"Database error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/reports')
@@ -149,7 +215,36 @@ def admin_reports():
 def admin_feedback():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
-    return render_template('admin/feedback.html')
+        
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                f.idno,
+                u.firstname || ' ' || u.lastname as student_name,
+                r.lab,
+                r.time_in,
+                f.feedback_text,
+                f.submitted_at
+            FROM feedback f
+            JOIN users u ON f.idno = u.idno
+            JOIN reservations r ON f.reservation_id = r.id
+            ORDER BY f.submitted_at DESC
+        """)
+        feedbacks = cursor.fetchall()
+        
+        formatted_feedbacks = []
+        for feedback in feedbacks:
+            formatted_feedbacks.append({
+                'idno': feedback[0],
+                'student_name': feedback[1],
+                'laboratory': feedback[2],
+                'date': feedback[3],
+                'message': feedback[4],
+                'submitted_at': feedback[5]
+            })
+        
+    return render_template('admin/feedback.html', feedbacks=formatted_feedbacks)
 
 @app.route('/admin/announcement', methods=['GET', 'POST'])
 def admin_announcement():
@@ -159,15 +254,16 @@ def admin_announcement():
     if request.method == 'POST':
         title = request.form.get('title')
         message = request.form.get('message')
+        author = request.form.get('author')  # Get the selected author from the form
         admin_id = session['admin_id']
         
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             try:
                 cursor.execute("""
-                    INSERT INTO announcements (admin_id, title, message)
-                    VALUES (?, ?, ?)
-                """, (admin_id, title, message))
+                    INSERT INTO announcements (admin_id, title, message, author)
+                    VALUES (?, ?, ?, ?)
+                """, (admin_id, title, message, author))
                 conn.commit()
                 flash('Announcement added successfully', 'success')
             except Exception as e:
@@ -178,14 +274,18 @@ def admin_announcement():
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT a.announcement_id, a.title, a.message, a.created_at, adm.username
+            SELECT a.announcement_id, a.title, a.message, a.created_at, a.author
             FROM announcements a
-            JOIN admin adm ON a.admin_id = adm.admin_id
             ORDER BY a.created_at DESC
         """)
         announcements = cursor.fetchall()
         
-    return render_template('admin/adminannouncement.html', announcements=announcements)
+    # Define available authors
+    authors = ['CSS Admin', 'CSS Dean', 'Sit-in Supervisor']
+        
+    return render_template('admin/adminannouncement.html', 
+                         announcements=announcements,
+                         authors=authors)
 
 @app.route('/admin/announcement/delete/<int:announcement_id>')
 def delete_announcement(announcement_id):
@@ -262,68 +362,194 @@ def edit_announcement(announcement_id):
         flash('Announcement not found', 'error')
         return redirect(url_for('admin_announcement'))
 
-@app.route('/admin/sit_in_student', methods=['GET', 'POST'])
-def admin_sit_in_student():
-    if 'admin_id' not in session:
-        return redirect(url_for('admin_login'))
-        
-    if request.method == 'POST':
-        student_id = request.form.get('student_id')
-        laboratory = request.form.get('laboratory')
-        
-        student = search_student(student_id)
-        if not student:
-            flash('Student not found', 'error')
-            return redirect(url_for('admin_sit_in_student'))
+@app.route('/admin/sit_in_student', methods=['POST'])
+def sit_in_student():
+    data = request.get_json()
+    student_id = data.get('student_id')
+    purpose = data.get('purpose', '').strip()
+    laboratory = data.get('laboratory')
+    
+    # Standardize purpose case
+    purpose_mapping = {
+        'PHP': 'Php',
+        'JAVA': 'Java',
+        'C#': 'C#',
+        'C': 'C',
+        'ASP.NET': 'ASP.NET'
+    }
+    
+    purpose = purpose_mapping.get(purpose.upper(), purpose)
+    
+    if not all([student_id, purpose, laboratory]):
+        return jsonify({'error': 'Missing required data'}), 400
+    
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
             
-        if student['available_sessions'] <= 0:
-            flash('Student has no remaining sessions', 'error')
-            return redirect(url_for('admin_sit_in_student'))
+            # First check if student exists and get their course and sessions
+            cursor.execute("""
+                SELECT COALESCE(sessions, 0) as sessions, course 
+                FROM users 
+                WHERE idno = ?
+            """, (student_id,))
+            result = cursor.fetchone()
             
-        if update_sessions_on_reservation(student_id) and record_sit_in(student_id, session['admin_id'], laboratory):
-            flash('Student successfully logged for sit-in', 'success')
-        else:
-            flash('Failed to record sit-in', 'error')
+            if not result:
+                return jsonify({'error': 'Student not found'}), 404
+                
+            current_sessions = int(result[0] or 0)  # Handle NULL sessions
+            course = result[1]
             
-    return render_template('admin/adminsitin.html')
-
-@app.route('/admin/reservation')
-def admin_reservation():
-    if 'admin_id' not in session:
-        return redirect(url_for('login'))
-        
-    with sqlite3.connect("users.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                r.id,
-                r.idno,
-                u.firstname || ' ' || u.lastname as student_name,
-                r.purpose,
-                r.lab,
-                r.time_in,
-                r.status,
-                r.time_out
-            FROM reservations r
-            JOIN users u ON r.idno = u.idno
-            ORDER BY r.time_in DESC
-        """)
-        reservations = cursor.fetchall()
-        
-        reservation_list = []
-        for res in reservations:
-            reservation_list.append({
-                'id': res[0],
-                'student_id': res[1],
-                'student_name': res[2],
-                'purpose': res[3],
-                'laboratory': res[4],
-                'time_in': res[5],
-                'status': res[6],
-                'time_out': res[7] if res[7] else 'Not logged out'
+            # Set total sessions based on course
+            total_sessions = 30 if course in [
+                'Bachelor of Science in Information Technology',
+                'Bachelor of Science in Computer Science'
+            ] else 15
+            
+            # Initialize sessions if it's NULL
+            if current_sessions == 0:
+                current_sessions = total_sessions
+                cursor.execute("""
+                    UPDATE users 
+                    SET sessions = ? 
+                    WHERE idno = ?
+                """, (total_sessions, student_id))
+            
+            if current_sessions <= 0:
+                return jsonify({
+                    'error': 'No remaining sessions available'
+                }), 400
+            
+            # Check if student already has an active sit-in
+            cursor.execute("""
+                SELECT COUNT(*) FROM reservations 
+                WHERE idno = ? AND status = 'Active'
+            """, (student_id,))
+            active_sessions = cursor.fetchone()[0]
+            
+            if active_sessions > 0:
+                return jsonify({
+                    'error': 'Student already has an active sit-in session'
+                }), 400
+            
+            # Create sit-in record
+            cursor.execute("""
+                INSERT INTO reservations (idno, purpose, lab, time_in, status)
+                VALUES (?, ?, ?, datetime('now', 'localtime'), 'Active')
+            """, (student_id, purpose, laboratory))
+            
+            # Update remaining sessions
+            cursor.execute("""
+                UPDATE users 
+                SET sessions = sessions - 1 
+                WHERE idno = ?
+            """, (student_id,))
+            
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'remaining_sessions': current_sessions - 1,
+                'message': f'Sit-in recorded successfully. {current_sessions - 1} sessions remaining.'
             })
             
-    return render_template('admin/adminreservation.html', reservations=reservation_list)
+    except Exception as e:
+        print(f"Error in sit_in_student: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/current-sitin')
+def admin_current_sitin():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        # Get current sit-ins
+        cursor.execute("""
+            SELECT 
+                r.idno,
+                u.firstname || ' ' || COALESCE(u.middlename, '') || ' ' || u.lastname as full_name,
+                r.purpose,
+                r.lab,
+                r.time_in
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            WHERE r.status = 'Active'
+            ORDER BY r.time_in DESC
+        """)
+        current_sitins = cursor.fetchall()
+        
+        # Get purpose counts with case-insensitive grouping
+        cursor.execute("""
+            SELECT 
+                CASE 
+                    WHEN upper(purpose) = 'PHP' THEN 'Php'
+                    WHEN upper(purpose) = 'JAVA' THEN 'Java'
+                    WHEN upper(purpose) = 'C#' THEN 'C#'
+                    WHEN upper(purpose) = 'C' THEN 'C'
+                    WHEN upper(purpose) = 'ASP.NET' THEN 'ASP.NET'
+                    ELSE purpose
+                END as standardized_purpose,
+                COUNT(*) as count
+            FROM reservations
+            WHERE status = 'Active'
+            GROUP BY standardized_purpose
+        """)
+        purpose_counts = dict(cursor.fetchall())
+    
+    return render_template('admin/admincurrentsitin.html', 
+                         sitins=current_sitins,
+                         purpose_counts=purpose_counts)
+
+@app.route('/admin/logout_student', methods=['POST'])
+def logout_student():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.get_json()
+    student_id = data.get('student_id')
+    
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # Update the session count for the student
+            cursor.execute("""
+                UPDATE users 
+                SET sessions = sessions - 1 
+                WHERE idno = ?
+            """, (student_id,))
+            
+            # Update the reservation with logout time and status
+            cursor.execute("""
+                UPDATE reservations 
+                SET time_out = datetime('now', 'localtime'),
+                    status = 'Completed'
+                WHERE idno = ? AND status = 'Active'
+            """, (student_id,))
+            
+            # Get the updated logout time
+            cursor.execute("""
+                SELECT time_out 
+                FROM reservations 
+                WHERE idno = ? 
+                ORDER BY time_out DESC 
+                LIMIT 1
+            """, (student_id,))
+            
+            logout_time = cursor.fetchone()[0]
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'logout_time': logout_time
+            })
+            
+    except Exception as e:
+        print(f"Database error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/admin/logout')
 def admin_logout():
@@ -356,6 +582,8 @@ def index():
 def Dashboard():
     if 'username' not in session:
         return redirect(url_for('login'))
+        
+    rejection_message = session.pop('rejection_message', None)
     
     print(f"Debug - User in session: {session['username']}")
     print(f"Debug - Student ID: {session['student_id']}")
@@ -376,7 +604,8 @@ def Dashboard():
     
     return render_template('student/index.html', 
                          username=session['username'],
-                         reservations=reservations)
+                         reservations=reservations,
+                         rejection_message=rejection_message)
 
 @app.route('/Profile', methods=['GET', 'POST'])
 def Profile():
@@ -481,26 +710,62 @@ def save_photo():
 
 @app.route('/Announcement')
 def Announcement():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-        
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT a.announcement_id, a.title, a.message, a.created_at, adm.username
+            SELECT a.announcement_id, a.title, a.message, a.created_at, a.author
             FROM announcements a
-            JOIN admin adm ON a.admin_id = adm.admin_id
             ORDER BY a.created_at DESC
         """)
         announcements = cursor.fetchall()
-        
     return render_template('student/announcement.html', announcements=announcements)
 
 @app.route('/Session')
 def Session():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('student/session.html')
+        
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        # Get both sessions and course
+        cursor.execute("""
+            SELECT COALESCE(sessions, 0) as sessions, course
+            FROM users 
+            WHERE idno = ?
+        """, (session['student_id'],))
+        
+        result = cursor.fetchone()
+        if result:
+            current_sessions, course = result
+            # Set total sessions based on course
+            total_sessions = 30 if course in [
+                'Bachelor of Science in Information Technology',
+                'Bachelor of Science in Computer Science'
+            ] else 15
+            
+            # Handle NULL or invalid sessions value
+            available_sessions = int(current_sessions or 0)
+            
+            # If sessions is 0 or NULL, initialize it
+            if available_sessions == 0:
+                available_sessions = total_sessions
+                cursor.execute("""
+                    UPDATE users 
+                    SET sessions = ? 
+                    WHERE idno = ?
+                """, (total_sessions, session['student_id']))
+                conn.commit()
+            
+            used_sessions = total_sessions - available_sessions
+        else:
+            total_sessions = 15  # Default to lower limit if user not found
+            available_sessions = 15
+            used_sessions = 0
+            
+    return render_template('student/session.html', 
+                         total_sessions=total_sessions,
+                         available_sessions=available_sessions,
+                         used_sessions=used_sessions)
 
 @app.route('/History')
 def History():
@@ -518,11 +783,13 @@ def History():
                 r.lab,
                 r.time_in,
                 r.time_out,
-                DATE(r.time_in) as date
+                DATE(r.time_in) as date,
+                r.status
             FROM reservations r
             JOIN users u ON r.idno = u.idno
+            WHERE r.idno = ?  
             ORDER BY r.time_in DESC
-        """)
+        """, (session['student_id'],))
         history_records = cursor.fetchall()
 
         history = []
@@ -535,30 +802,55 @@ def History():
                 'laboratory': record[4],
                 'login': record[5],
                 'logout': record[6] if record[6] else 'Not logged out',
-                'date': record[7]
+                'date': record[7],
+                'status': record[8]
             })
             
     return render_template('student/history.html', history=history)
 
+@app.route('/delete_record/<int:record_id>', methods=['DELETE'])
+def delete_record(record_id):
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            # Verify the record belongs to the logged-in user
+            cursor.execute("""
+                DELETE FROM reservations 
+                WHERE id = ? AND idno = ?
+            """, (record_id, session['student_id']))
+            conn.commit()
+            
+            if cursor.rowcount > 0:
+                return jsonify({'success': True})
+            else:
+                return jsonify({'success': False, 'error': 'Record not found'}), 404
+                
+    except Exception as e:
+        print(f"Error deleting record: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/Reservation', methods=['GET', 'POST'])
 def Reservation():
-    print(f"Reservation route - Session contents: {session}") 
-    
     if 'username' not in session:
         return redirect(url_for('login'))
         
     if 'student_id' not in session:
-        print("No student_id in session!")  
-        flash("Please log in again.", "error")
         return redirect(url_for('login'))
         
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT idno, firstname, middlename, lastname, sessions FROM users WHERE idno = ?", (session['student_id'],))
+        cursor.execute("""
+            SELECT idno, firstname, middlename, lastname, 
+                   COALESCE(sessions, 30) as sessions 
+            FROM users 
+            WHERE idno = ?
+        """, (session['student_id'],))
         user = cursor.fetchone()
-        print(f"Found user: {user}") 
 
         if user:
             user_data = {
@@ -566,34 +858,31 @@ def Reservation():
                 "firstname": user[1],
                 "middlename": user[2] if user[2] else '',
                 "lastname": user[3],
-                "sessions": user[4] if user[4] else 0
+                "sessions": user[4]
             }
+            
+            if request.method == 'POST':
+                purpose = request.form['purpose']
+                lab = request.form['lab']
+                time_in = request.form['time_in']
+
+                cursor.execute("""
+                    INSERT INTO reservations (idno, purpose, lab, time_in, status)
+                    VALUES (?, ?, ?, ?, 'Pending')
+                """, (user_data["idno"], purpose, lab, time_in))
+                
+                conn.commit()
+                return redirect(url_for('Dashboard'))
+                
         else:
             user_data = None
-            print("No user found with student_id:", session['student_id'])  
+            
     except Exception as e:
-        print(f"Error in database query: {e}")  
+        print(f"Error in database query: {e}")
         user_data = None
-
-    if request.method == 'POST':
-        purpose = request.form['purpose']
-        lab = request.form['lab']
-        time_in = request.form['time_in']
-        remaining_sessions = int(user_data["sessions"])
-
-        if remaining_sessions > 0:
-            new_sessions = remaining_sessions - 1
-            cursor.execute("UPDATE users SET sessions = ? WHERE idno = ?", (new_sessions, user_data["idno"]))
-            conn.commit()
-
-            cursor.execute("INSERT INTO reservations (idno, purpose, lab, time_in) VALUES (?, ?, ?, ?)", (user_data["idno"], purpose, lab, time_in))
-            conn.commit()
-
-            flash("Reservation successful! Remaining sessions: " + str(new_sessions), "success")
-        else:
-            flash("No remaining sessions. Please contact an admin.", "error")
-
-    conn.close()
+    finally:
+        conn.close()
+        
     return render_template('student/reservation.html', user=user_data)
 
 @app.route('/submit_reservation', methods=['POST'])
@@ -607,33 +896,33 @@ def submit_reservation():
     lab = request.form['lab']
     time_in = request.form['time_in']
 
-    print(f"Debug - Submitting reservation for student: {student_id}")  # Debug print
-    print(f"Debug - Form data: purpose={purpose}, lab={lab}, time={time_in}")  # Debug print
-
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
 
     try:
-        cursor.execute("SELECT sessions FROM users WHERE idno = ?", (student_id,))
+        cursor.execute("SELECT sessions, course FROM users WHERE idno = ?", (student_id,))
         user = cursor.fetchone()
-        print(f"Debug - User sessions: {user}")  
 
-        if user and user[0] > 0:
-            new_sessions = user[0] - 1
+        if user:
+            current_sessions, course = user
+            # Set total sessions based on course
+            total_sessions = 30 if course in [
+                'Bachelor of Science in Information Technology',
+                'Bachelor of Science in Computer Science'
+            ] else 15
 
-            cursor.execute("UPDATE users SET sessions = ? WHERE idno = ?", (new_sessions, student_id))
-
-            cursor.execute("""
-                INSERT INTO reservations (idno, purpose, lab, time_in, status) 
-                VALUES (?, ?, ?, ?, 'Pending')
-            """, (student_id, purpose, lab, time_in))
-            
-            print(f"Debug - Reservation inserted") 
-            
-            conn.commit()
-            flash("Reservation submitted successfully!", "success")
+            if current_sessions > 0:
+                cursor.execute("""
+                    INSERT INTO reservations (idno, purpose, lab, time_in, status) 
+                    VALUES (?, ?, ?, ?, 'Pending')
+                """, (student_id, purpose, lab, time_in))
+                
+                conn.commit()
+                flash("Reservation submitted successfully!", "success")
+            else:
+                flash("No remaining sessions available!", "danger")
         else:
-            flash("No remaining sessions available!", "danger")
+            flash("User not found!", "error")
 
     except Exception as e:
         print(f"Error in reservation submission: {e}")
@@ -643,25 +932,59 @@ def submit_reservation():
 
     return redirect(url_for('Dashboard'))
 
+@app.route('/submit_feedback', methods=['POST'])
+def submit_feedback():
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    try:
+        data = request.get_json()
+        student_id = session['student_id']
+        feedback_text = data.get('feedback')
+        reservation_id = data.get('reservation_id')
+
+        if not feedback_text:
+            return jsonify({'success': False, 'error': 'Feedback text is required'}), 400
+        if not reservation_id:
+            return jsonify({'success': False, 'error': 'Reservation ID is required'}), 400
+
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO feedback (idno, reservation_id, feedback_text)
+                VALUES (?, ?, ?)
+            """, (student_id, reservation_id, feedback_text))
+            conn.commit()
+            return jsonify({'success': True})
+
+    except Exception as e:
+        print(f"Error submitting feedback: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        course = request.form['course']
+        # Set session limit based on course
+        session_limit = 30 if course in ['Bachelor of Science in Information Technology', 
+                                       'Bachelor of Science in Computer Science'] else 15
+        
         user_data = {
             'idno': request.form['idno'],
             'lastname': request.form['lastname'],
             'firstname': request.form['firstname'],
             'middlename': request.form.get('middlename', ''),  
-            'course': request.form['course'],
+            'course': course,
             'year_level': request.form['level'],  
             'email': request.form['email'],
             'username': request.form['username'],
-            'password': generate_password_hash(request.form['password']) 
+            'password': generate_password_hash(request.form['password']),
+            'sessions': session_limit  # Set initial sessions based on course
         }
         
         if add_user(user_data):
-            flash("Registration successful! Please log in.", "success")
+            flash(f"Registration successful! Your maximum session limit is {session_limit}.", "success")
             return redirect(url_for('login'))
-    
     
     return render_template('student/register.html')
 

@@ -31,7 +31,11 @@ body {
     padding: 30px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     max-width: 800px;
-    margin: 20px auto;
+    margin: 50px auto;
+    position: absolute;
+    top: 25%;
+    left: 30%;
+    width: 90%;
 }
 
 .form-card h2 {
@@ -96,19 +100,6 @@ body {
     background-color: #4c2e5d;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .form-card {
-        margin: 0 15px;
-        padding: 20px;
-    }
-
-    .form-row {
-        flex-direction: column;
-        gap: 15px;
-    }
-}
-
 /* Sidebar Styles */
 .sidebar {
     width: 250px;
@@ -132,66 +123,6 @@ body {
 
 .main-content.expanded {
     margin-left: -250px;
-}
-
-
-@media (max-width: 768px) {
-    .sidebar {
-        left: -250px;
-    }
-    .main-content {
-        margin-left: 0;
-        width: 100%;
-    }
-}
-
-/* Update the media queries */
-@media screen and (max-width: 768px) {
-    .sidebar {
-        left: -250px;
-    }
-    
-    .sidebar.collapsed {
-        left: 0;
-        visibility: visible;
-    }
-    
-    .main-content {
-        margin-left: 0;
-        width: 100%;
-    }
-}
-
-/* Update responsive styles */
-@media (max-width: 1024px) {
-    .sidebar {
-        left: -250px;
-    }
-    
-    .sidebar.collapsed {
-        left: 0;
-    }
-    
-    .main-content {
-        margin-left: 0;
-        width: 100%;
-    }
-    
-    .main-content.expanded {
-        margin-left: 250px;
-        width: calc(100% - 250px);
-    }
-}
-
-@media (max-width: 768px) {
-    .main-content.expanded {
-        margin-left: 0;
-        width: 100%;
-    }
-    
-    .content-box {
-        padding: 15px;
-    }
 }
 
 .logo-container {
@@ -279,16 +210,38 @@ body {
     color: #333;
 }
 
+.session-info {
+    background-color: #f8f9fa;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
 
-/* Responsive Design */
-@media (max-width: 768px) {
+.session-info p {
+    color: #603A75;
+    font-weight: 500;
+    margin: 0;
+}
+
+
+/* Update responsive styles */
+@media (max-width: 1024px) {
     .sidebar {
-        position: fixed;
-        height: 100vh;
-        z-index: 1000;
+        left: -250px;
+    }
+    
+    .sidebar.collapsed {
+        left: 0;
     }
     
     .main-content {
         margin-left: 0;
+        width: 100%;
+    }
+    
+    .main-content.expanded {
+        margin-left: 250px;
+        width: calc(100% - 250px);
     }
 }

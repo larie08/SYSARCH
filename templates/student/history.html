@@ -36,7 +36,7 @@
                 <h1 class="header">Sit-in History</h1>
                 <div class="history-card">
                     <div class="search-container">
-                        <input type="text" placeholder="Search" class="search-input">
+                        <input type="text" id="searchInput" placeholder="Search" class="search-input">
                         <i class="fas fa-search search-icon"></i>
                     </div>
             
@@ -52,8 +52,7 @@
                             </div>
                         </div>
 
-            <table class="history-table">
-                <!--table id="historyTable"-->
+                <table class="history-table" id="historyTable">
                     <thead>
                         <tr>
                             <th onclick="sortTable(0)">ID Number <i class="fas fa-sort"></i></th>
@@ -67,28 +66,51 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for record in history %}
-                        <tr>
-                            <td>{{ record.idno }}</td>
-                            <td>{{ record.name }}</td>
-                            <td>{{ record.purpose }}</td>
-                            <td>{{ record.laboratory }}</td>
-                            <td>{{ record.login }}</td>
-                            <td>{{ record.logout }}</td>
-                            <td>{{ record.date }}</td>
-                            <td>
-                                <button class="view-btn" onclick="viewDetails('{{ record.id }}')">
-                                    <i class="fas fa-eye"></i> View
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                            {% for record in history %}
+                            <tr data-id="{{ record.id }}">
+                                <td>{{ record.idno }}</td>
+                                <td>{{ record.name }}</td>
+                                <td>{{ record.purpose }}</td>
+                                <td>{{ record.laboratory }}</td>
+                                <td>{{ record.login }}</td>
+                                <td>{{ record.logout }}</td>
+                                <td>{{ record.date }}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        {% if record.status == 'Completed' %}
+                                            <button class="feedback-btn" onclick="openFeedbackModal('{{ record.id }}')">
+                                                <i class="fas fa-comment"></i>
+                                            </button>
+                                        {% endif %}
+                                        <button class="delete-btn" onclick="deleteRecord('{{ record.id }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
                     </tbody>
                 </table>
             </div>
         </div>
 
+        <!-- Feedback Modal -->
+        <div id="feedbackModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>How's your Experience?</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <textarea id="feedbackText" placeholder="What are your thoughts..." rows="5"></textarea>
+                    <button id="submitFeedback" class="submit-btn">Submit Feedback</button>
+                </div>
+            </div>
+        </div>
+    </main>
         <script>
+            // Search functionality
             document.getElementById('searchInput').addEventListener('keyup', function() {
                 let searchQuery = this.value.toLowerCase();
                 let table = document.getElementById('historyTable');
@@ -111,6 +133,7 @@
                 }
             });
 
+            // Sort table functionality
             function sortTable(n) {
                 let table = document.getElementById('historyTable');
                 let switching = true;
@@ -158,12 +181,12 @@
                 console.log('Viewing details for ID:', id);
             }
 
-            //Nav bar
+            // Sidebar functionality
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.querySelector('.main-content');
             const sidebarToggle = document.getElementById('sidebar-toggle');
             let isSidebarOpen = true;
-        
+
             function toggleSidebar() {
                 isSidebarOpen = !isSidebarOpen;
                 if (isSidebarOpen) {
@@ -174,8 +197,104 @@
                     mainContent.style.marginLeft = '0';
                 }
             }
-        
+
             sidebarToggle.addEventListener('click', toggleSidebar);
+
+            // Feedback Modal Functions
+            const feedbackModal = document.getElementById('feedbackModal');
+            const closeModal = document.querySelector('.close-modal');
+            let currentSitInId = null;
+
+            function openFeedbackModal(id) {
+                console.log('Opening modal for ID:', id); // Debug line
+                currentSitInId = id;
+                const modal = document.getElementById('feedbackModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    console.error('Modal element not found');
+                }
+            }
+
+            // Close modal when clicking the X
+            if (closeModal) {
+                closeModal.addEventListener('click', function() {
+                    feedbackModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                });
+            }
+
+            // Close modal when clicking outside
+            window.addEventListener('click', function(event) {
+                if (event.target === feedbackModal) {
+                    feedbackModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
+
+            window.onclick = function(event) {
+                if (event.target == feedbackModal) {
+                    feedbackModal.style.display = 'none';
+                    document.body.style.overflow = 'auto'; // Restore scrolling
+                }
+            }
+
+            document.getElementById('submitFeedback').addEventListener('click', function() {
+                const feedbackText = document.getElementById('feedbackText').value;
+                if (!feedbackText.trim()) {
+                    alert('Please enter your feedback');
+                    return;
+                }
+
+                fetch('/submit_feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        reservation_id: currentSitInId,  // Changed from sit_in_id to reservation_id
+                        feedback: feedbackText
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Feedback submitted successfully!');
+                        feedbackModal.style.display = 'none';
+                        document.getElementById('feedbackText').value = '';
+                    } else {
+                        alert('Failed to submit feedback: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while submitting feedback');
+                });
+            });
+            
+            function deleteRecord(id) {
+                if (confirm('Are you sure you want to delete this record?')) {
+                    fetch(`/delete_record/${id}`, {
+                        method: 'DELETE',
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Record deleted successfully!');
+                            location.reload();
+                        } else {
+                            alert('Failed to delete record. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while deleting the record');
+                    });
+                }
+            }
+
+
         </script>
     </body>
 </html>
