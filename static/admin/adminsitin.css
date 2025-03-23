@@ -138,6 +138,12 @@ body {
     font-size: 24px;
 }
 
+.admin-text {
+    color: #603A75;
+    font-size: 16px;
+    font-weight: 500;
+}
+
 .department-header {
     text-align: center;
     margin-bottom: 30px;

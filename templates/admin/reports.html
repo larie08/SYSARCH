@@ -33,29 +33,99 @@
         <div class="main-content">
             <div class="top-bar">
                 <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
-                <h1>College of Computer Studies Admin</h1>
-                <div class="announcement-badge">
-                    <i class="fas fa-bullhorn"><span>+ Announcements</span></i>
+            </div>
+            <div class="reports-section">
+                <h1>Sit-in Reports</h1>
+                
+                <div class="reports-container">
+                    <div class="reports-header">
+                        <div class="date-filter">
+                            <input type="date" id="dateFilter" class="date-input">
+                        </div>
+                        <button class="print-btn" onclick="showExportOptions()">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="reports-table">
+                            <thead>
+                                <tr>
+                                    <th>Sit-in Number</th>
+                                    <th>ID Number</th>
+                                    <th>Name</th>
+                                    <th>Purpose</th>
+                                    <th>Lab</th>
+                                    <th>Login</th>
+                                    <th>Logout</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in records %}
+                                <tr>
+                                    <td>{{ record.id }}</td>
+                                    <td>{{ record.idno }}</td>
+                                    <td>{{ record.name }}</td>
+                                    <td>{{ record.purpose }}</td>
+                                    <td>{{ record.lab }}</td>
+                                    <td>{{ record.time_in }}</td>
+                                    <td>{{ record.time_out }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-<script>
-    /*SIDEBAR*/
-    const sidebar = document.getElementById('sidebar');
-        const mainContent = document.querySelector('.main-content');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        let isSidebarOpen = true;
-    
-        function toggleSidebar() {
-            isSidebarOpen = !isSidebarOpen;
-            if (isSidebarOpen) {
-                sidebar.style.left = '0';
-                mainContent.style.marginLeft = '250px';
-            } else {
-                sidebar.style.left = '-250px';
-                mainContent.style.marginLeft = '0';
+        </div>
+
+        <!-- Export Options Modal -->
+        <div id="exportModal" class="modal">
+            <div class="modal-content">
+                <h2>Select Export Format</h2>
+                <div class="export-options">
+                    <button onclick="exportReport('csv')">CSV</button>
+                    <button onclick="exportReport('excel')">Excel</button>
+                    <button onclick="exportReport('pdf')">PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            /*SIDEBAR*/
+            const sidebar = document.getElementById('sidebar');
+                const mainContent = document.querySelector('.main-content');
+                const sidebarToggle = document.getElementById('sidebar-toggle');
+                let isSidebarOpen = true;
+            
+                function toggleSidebar() {
+                    isSidebarOpen = !isSidebarOpen;
+                    if (isSidebarOpen) {
+                        sidebar.style.left = '0';
+                        mainContent.style.marginLeft = '250px';
+                    } else {
+                        sidebar.style.left = '-250px';
+                        mainContent.style.marginLeft = '0';
+                    }
+                }
+            
+                sidebarToggle.addEventListener('click', toggleSidebar);
+            
+            function showExportOptions() {
+                document.getElementById('exportModal').style.display = 'block';
             }
-        }
-    
-        sidebarToggle.addEventListener('click', toggleSidebar);
-</script>
-</body>
+
+            function exportReport(format) {
+                const date = document.getElementById('dateFilter').value;
+                window.location.href = `/admin/export_report?format=${format}&date=${date}`;
+                document.getElementById('exportModal').style.display = 'none';
+            }
+
+            // Close modal when clicking outside
+            window.onclick = function(event) {
+                const modal = document.getElementById('exportModal');
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        </script>
