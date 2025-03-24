@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='admin/admincurrentsitin.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -36,38 +37,21 @@
         <div class="header">
             <h1>Current Sit in</h1>
             
-            <div class="content-wrapper">
-                <div class="sit-in-purposes">
-                    <h2>Sit in Purposes</h2>
-                    <div class="purpose-cards">
-                        <div class="purpose-card">
-                            <h3>C#</h3>
-                            <p class="count">{{ purpose_counts.get('C#', 0) }}</p>
-                        </div>
-                        <div class="purpose-card">
-                            <h3>C</h3>
-                            <p class="count">{{ purpose_counts.get('C', 0) }}</p>
-                        </div>
-                        <div class="purpose-card">
-                            <h3>Java</h3>
-                            <p class="count">{{ purpose_counts.get('Java', 0) }}</p>
-                        </div>
-                        <div class="purpose-card">
-                            <h3>ASP.NET</h3>
-                            <p class="count">{{ purpose_counts.get('ASP.NET', 0) }}</p>
-                        </div>
-                        <div class="purpose-card">
-                            <h3>Php</h3>
-                            <p class="count">{{ purpose_counts.get('Php', 0) }}</p>
-                        </div>
-                    </div>
+            <div class="charts-container">
+                <div class="chart-wrapper">
+                    <canvas id="purposeChart"></canvas>
                 </div>
-            
+                <div class="chart-wrapper">
+                    <canvas id="labChart"></canvas>
+                </div>
+            </div>
+
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
                             <th>Sit-in Number</th>
+                            <th>Photo</th>
                             <th>ID Number</th>
                             <th>Name</th>
                             <th>Purpose</th>
@@ -80,6 +64,13 @@
                         {% for sitin in sitins %}
                         <tr>
                             <td>{{ loop.index }}</td>
+                            <td class="profile-photo-cell">
+                                {% if sitin[6] %}
+                                    <img src="{{ url_for('static', filename='uploads/' + sitin[6]) }}" alt="Profile Photo" class="profile-photo">
+                                {% else %}
+                                    <img src="{{ url_for('static', filename='images/default.png') }}" alt="Default Photo" class="profile-photo">
+                                {% endif %}
+                            </td>
                             <td>{{ sitin[0] }}</td>
                             <td>{{ sitin[1] }}</td>
                             <td>{{ sitin[2] }}</td>
@@ -155,6 +146,82 @@
                 });
             });
         });
+
+        {% if sitins %}
+        // Add Chart.js CDN in the head section
+        const purposeData = {
+            labels: ['C#', 'C', 'Java', 'ASP.NET', 'Php'],
+            values: [
+                {{ purpose_counts.get('C#', 0) }},
+                {{ purpose_counts.get('C', 0) }},
+                {{ purpose_counts.get('Java', 0) }},
+                {{ purpose_counts.get('ASP.NET', 0) }},
+                {{ purpose_counts.get('Php', 0) }}
+            ]
+        };
+
+        const labCounts = {};
+        {% for sitin in sitins %}
+            if (!labCounts['{{ sitin[3] }}']) {
+                labCounts['{{ sitin[3] }}'] = 0;
+            }
+            labCounts['{{ sitin[3] }}']++;
+        {% endfor %}
+
+        // Create Purpose Chart
+        new Chart(document.getElementById('purposeChart'), {
+            type: 'bar',
+            data: {
+                labels: purposeData.labels,
+                datasets: [{
+                    label: 'Purpose Distribution',
+                    data: purposeData.values,
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0',
+                        '#9966FF'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Current Sit-in by Purpose'
+                    }
+                }
+            }
+        });
+
+        // Create Laboratory Chart
+        new Chart(document.getElementById('labChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(labCounts),
+                datasets: [{
+                    data: Object.values(labCounts),
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Laboratory Distribution'
+                    }
+                }
+            }
+        });
+        {% endif %}
     </script>
 </body>
 </html>

@@ -48,7 +48,7 @@
                     <div class="profile-image">
                         <form action="{{ url_for('save_photo') }}" method="POST" enctype="multipart/form-data" id="photo-form">
                             <div class="profile-image-upload">
-                                <img src="{{ url_for('static', filename='uploads/' + (user[9] if user[9] else 'default-profile.png')) }}" 
+                                <img src="{{ url_for('static', filename='uploads/' + user[9]) if user[9] else url_for('static', filename='images/default.png') }}"
                                      alt="Profile Photo" 
                                      class="round-circle" 
                                      id="preview-image">
@@ -89,7 +89,7 @@
                         </div>
                         <div class="info-item">
                             <p class="label">Address: </p>
-                            <p class="value">{{ user[7] }}</p>
+                            <p class="value">{{ user[7] if user[7] else 'No address provided' }}</p>
                         </div>
                         <div class="info-item sessions-info">
                             <p class="label">Remaining Sessions: </p>

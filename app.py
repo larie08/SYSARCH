@@ -77,6 +77,25 @@ def admin_dashboard():
         cursor.execute("SELECT COUNT(*) FROM reservations WHERE status = 'Active'")
         current_sitins = cursor.fetchone()[0]
         
+        cursor.execute("""
+            UPDATE users 
+            SET sessions = CASE 
+                WHEN course LIKE '%Information Technology%' 
+                     OR course LIKE '%Computer Science%' THEN 30 
+                ELSE 15 
+            END
+            WHERE sessions IS NULL
+        """)
+        # Get current sit-ins with proper join to users
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            WHERE r.status = 'Active'
+        """)
+        current_sitins = cursor.fetchone()[0]
+        
+
         # Get total sit-ins
         cursor.execute("SELECT COUNT(*) FROM reservations")
         total_sitins = cursor.fetchone()[0]
@@ -143,34 +162,34 @@ def admin_dashboard():
 def admin_sitin():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
-    
+        
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT r.id, r.idno, u.firstname, u.lastname, r.purpose, r.lab, r.time_in, 
-                   CASE 
-                       WHEN r.status = 'Active' THEN 'Sit-in'
-                       ELSE r.status 
-                   END as status
-            FROM reservations r
-            JOIN users u ON r.idno = u.idno
-            ORDER BY r.time_in DESC
+            SELECT 
+                idno,
+                firstname || ' ' || COALESCE(middlename, '') || ' ' || lastname as name,
+                course,
+                year_level,
+                sessions,
+                photo
+            FROM users
+            ORDER BY name
         """)
-        rows = cursor.fetchall()
         
-        reservations = []
-        for row in rows:
-            reservations.append({
-                'id': row[0],
-                'idno': row[1],
-                'name': f"{row[2]} {row[3]}",
-                'purpose': row[4],
-                'lab': row[5],
-                'time_in': row[6],
-                'status': row[7]
-            })
-    
-    return render_template('admin/adminsitin.html', reservations=reservations)
+        users = [
+            {
+                'idno': row[0],
+                'name': row[1],
+                'course': row[2],
+                'year_level': row[3],
+                'remaining_sessions': row[4],
+                'photo': row[5] if row[5] else None  # Set to None if no photo
+            }
+            for row in cursor.fetchall()
+        ]
+        
+    return render_template('admin/adminsitin.html', users=users)
 
 @app.route('/admin/search_student/<student_id>')
 def search_student(student_id):
@@ -211,6 +230,37 @@ def search_student(student_id):
     except Exception as e:
         print(f"Database error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/reset_session', methods=['POST'])
+def reset_session():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        course = data.get('course')
+        
+        # Set session limit based on course
+        session_limit = 30 if 'Bachelor of Science in Information Technology' in course or 'Bachelor of Science in Computer Science' in course else 15
+        
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE users 
+                SET sessions = ? 
+                WHERE idno = ?
+            """, (session_limit, student_id))
+            conn.commit()
+            
+            if cursor.rowcount > 0:
+                return jsonify({'success': True})
+            else:
+                return jsonify({'success': False, 'error': 'Student not found'})
+                
+    except Exception as e:
+        print(f"Error resetting session: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/reports')
 def admin_reports():
@@ -591,22 +641,38 @@ def admin_current_sitin():
     
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
-        # Get current sit-ins
+
+        
+        # Update any NULL sessions first
+        cursor.execute("""
+            UPDATE users 
+            SET sessions = CASE 
+                WHEN (course LIKE '%Information Technology%' 
+                     OR course LIKE '%Computer Science%') THEN 30 
+                ELSE 15 
+            END
+            WHERE sessions IS NULL
+        """)
+        conn.commit()
+
+       # Get current sit-ins with user photo
         cursor.execute("""
             SELECT 
                 r.idno,
                 u.firstname || ' ' || COALESCE(u.middlename, '') || ' ' || u.lastname as full_name,
                 r.purpose,
                 r.lab,
-                r.time_in
+                strftime('%Y-%m-%d %H:%M', r.time_in) as time_in,
+                strftime('%Y-%m-%d %H:%M', r.time_out) as time_out,
+                u.photo
             FROM reservations r
             JOIN users u ON r.idno = u.idno
-            WHERE r.status = 'Active'
+            WHERE r.status = 'Active' AND r.time_out IS NULL
             ORDER BY r.time_in DESC
         """)
         current_sitins = cursor.fetchall()
         
-        # Get purpose counts with case-insensitive grouping
+        # Get purpose counts only for active sit-ins
         cursor.execute("""
             SELECT 
                 CASE 
@@ -619,7 +685,7 @@ def admin_current_sitin():
                 END as standardized_purpose,
                 COUNT(*) as count
             FROM reservations
-            WHERE status = 'Active'
+            WHERE status = 'Active' AND time_out IS NULL
             GROUP BY standardized_purpose
         """)
         purpose_counts = dict(cursor.fetchall())
@@ -746,7 +812,7 @@ def Profile():
             'email': request.form.get('email', ''),
             'course': request.form.get('course', ''),
             'level': request.form.get('yearlevel', ''),
-            'address': request.form.get('address', ''),
+            'address': request.form.get('address', ''), 
             'photo': None
         }
 
@@ -853,9 +919,23 @@ def Session():
         
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
-        # Get both sessions and course
+        # First, ensure correct session initialization
         cursor.execute("""
-            SELECT COALESCE(sessions, 0) as sessions, course
+            UPDATE users 
+            SET sessions = CASE 
+                WHEN course IN (
+                    'Bachelor of Science in Information Technology',
+                    'Bachelor of Science in Computer Science'
+                ) THEN 30 
+                ELSE 15 
+            END
+            WHERE idno = ? AND (sessions IS NULL OR sessions = 15)
+        """, (session['student_id'],))
+        conn.commit()
+        
+        # Then get the current sessions
+        cursor.execute("""
+            SELECT sessions, course
             FROM users 
             WHERE idno = ?
         """, (session['student_id'],))
@@ -863,28 +943,15 @@ def Session():
         result = cursor.fetchone()
         if result:
             current_sessions, course = result
-            # Set total sessions based on course
             total_sessions = 30 if course in [
                 'Bachelor of Science in Information Technology',
                 'Bachelor of Science in Computer Science'
             ] else 15
             
-            # Handle NULL or invalid sessions value
             available_sessions = int(current_sessions or 0)
-            
-            # If sessions is 0 or NULL, initialize it
-            if available_sessions == 0:
-                available_sessions = total_sessions
-                cursor.execute("""
-                    UPDATE users 
-                    SET sessions = ? 
-                    WHERE idno = ?
-                """, (total_sessions, session['student_id']))
-                conn.commit()
-            
             used_sessions = total_sessions - available_sessions
         else:
-            total_sessions = 15  # Default to lower limit if user not found
+            total_sessions = 15
             available_sessions = 15
             used_sessions = 0
             
@@ -958,105 +1025,35 @@ def delete_record(record_id):
         print(f"Error deleting record: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/Reservation', methods=['GET', 'POST'])
+@app.route('/Reservation')
 def Reservation():
     if 'username' not in session:
         return redirect(url_for('login'))
-        
-    if 'student_id' not in session:
-        return redirect(url_for('login'))
-        
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
     
-    try:
+    # Get user data including sessions
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
         cursor.execute("""
-            SELECT idno, firstname, middlename, lastname, 
-                   COALESCE(sessions, 30) as sessions 
+            SELECT idno, firstname, lastname, course, sessions
             FROM users 
             WHERE idno = ?
         """, (session['student_id'],))
-        user = cursor.fetchone()
-
-        if user:
-            user_data = {
-                "idno": user[0],
-                "firstname": user[1],
-                "middlename": user[2] if user[2] else '',
-                "lastname": user[3],
-                "sessions": user[4]
-            }
-            
-            if request.method == 'POST':
-                purpose = request.form['purpose']
-                lab = request.form['lab']
-                time_in = request.form['time_in']
-
-                cursor.execute("""
-                    INSERT INTO reservations (idno, purpose, lab, time_in, status)
-                    VALUES (?, ?, ?, ?, 'Pending')
-                """, (user_data["idno"], purpose, lab, time_in))
-                
-                conn.commit()
-                return redirect(url_for('Dashboard'))
-                
-        else:
-            user_data = None
-            
-    except Exception as e:
-        print(f"Error in database query: {e}")
-        user_data = None
-    finally:
-        conn.close()
+        user = dict(zip(['idno', 'firstname', 'lastname', 'course', 'sessions'], cursor.fetchone()))
         
-    return render_template('student/reservation.html', user=user_data)
-
-@app.route('/submit_reservation', methods=['POST'])
-def submit_reservation():
-    if 'username' not in session:
-        flash("You must be logged in to make a reservation.", "warning")
-        return redirect(url_for('login'))
-
-    student_id = session['student_id']
-    purpose = request.form['purpose']
-    lab = request.form['lab']
-    time_in = request.form['time_in']
-
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("SELECT sessions, course FROM users WHERE idno = ?", (student_id,))
-        user = cursor.fetchone()
-
-        if user:
-            current_sessions, course = user
-            # Set total sessions based on course
-            total_sessions = 30 if course in [
-                'Bachelor of Science in Information Technology',
-                'Bachelor of Science in Computer Science'
-            ] else 15
-
-            if current_sessions > 0:
-                cursor.execute("""
-                    INSERT INTO reservations (idno, purpose, lab, time_in, status) 
-                    VALUES (?, ?, ?, ?, 'Pending')
-                """, (student_id, purpose, lab, time_in))
-                
-                conn.commit()
-                flash("Reservation submitted successfully!", "success")
-            else:
-                flash("No remaining sessions available!", "danger")
-        else:
-            flash("User not found!", "error")
-
-    except Exception as e:
-        print(f"Error in reservation submission: {e}")
-        flash("An error occurred while submitting your reservation.", "error")
-    finally:
-        conn.close()
-
-    return redirect(url_for('Dashboard'))
+        # Set total sessions based on course
+        total_sessions = 30 if user['course'] in [
+            'Bachelor of Science in Information Technology',
+            'Bachelor of Science in Computer Science'
+        ] else 15
+        
+        # Initialize sessions if NULL
+        if user['sessions'] is None:
+            user['sessions'] = total_sessions
+            cursor.execute("UPDATE users SET sessions = ? WHERE idno = ?", 
+                         (total_sessions, user['idno']))
+            conn.commit()
+    
+    return render_template('student/reservation.html', user=user)
 
 @app.route('/submit_feedback', methods=['POST'])
 def submit_feedback():
@@ -1090,29 +1087,39 @@ def submit_feedback():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        course = request.form['course']
-        # Set session limit based on course
-        session_limit = 30 if course in ['Bachelor of Science in Information Technology', 
-                                       'Bachelor of Science in Computer Science'] else 15
-        
-        user_data = {
-            'idno': request.form['idno'],
-            'lastname': request.form['lastname'],
-            'firstname': request.form['firstname'],
-            'middlename': request.form.get('middlename', ''),  
-            'course': course,
-            'year_level': request.form['level'],  
-            'email': request.form['email'],
-            'username': request.form['username'],
-            'password': generate_password_hash(request.form['password']),
-            'sessions': session_limit  # Set initial sessions based on course
-        }
-        
-        if add_user(user_data):
-            flash(f"Registration successful! Your maximum session limit is {session_limit}.", "success")
-            return redirect(url_for('login'))
-    
-    return render_template('student/register.html')
+        try:
+            course = request.form['course']
+            # Set session limit based on exact course names
+            session_limit = 30 if course in [
+                'Bachelor of Science in Information Technology',
+                'Bachelor of Science in Computer Science'
+            ] else 15
+            
+            user_data = {
+                'idno': request.form['idno'],
+                'lastname': request.form['lastname'],
+                'firstname': request.form['firstname'],
+                'middlename': request.form.get('middlename', ''),  
+                'course': course,
+                'year_level': request.form['level'],  
+                'email': request.form['email'],
+                'username': request.form['username'],
+                'password': generate_password_hash(request.form['password']),
+                'sessions': session_limit,  # Set initial session count
+                'address': request.form['address']
+            }
+            
+            if add_user(user_data):
+                flash(f"Registration successful! Your session limit is {session_limit}.", "success")
+                return redirect(url_for('login'))
+            else:
+                flash("Registration failed. Please try again.", "error")
+                
+        except Exception as e:
+            print(f"Registration error: {e}")
+            flash("Registration failed. Please try again.", "error")
+            
+    return render_template('register.html')
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():

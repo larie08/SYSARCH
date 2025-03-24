@@ -14,16 +14,18 @@ def create_tables():
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                IDNO TEXT PRIMARY KEY,
-                LASTNAME TEXT NOT NULL,
-                FIRSTNAME TEXT NOT NULL,
-                MIDDLENAME TEXT,
-                COURSE TEXT NOT NULL,
-                YEAR_LEVEL TEXT NOT NULL,
-                EMAIL TEXT UNIQUE NOT NULL,
-                USERNAME TEXT UNIQUE NOT NULL,
-                PASSWORD TEXT NOT NULL,
-                SESSIONS INTEGER DEFAULT 3
+                idno INTEGER PRIMARY KEY,
+                lastname TEXT NOT NULL,
+                firstname TEXT NOT NULL,
+                middlename TEXT,
+                course TEXT NOT NULL,
+                year_level INTEGER NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                sessions TEXT DEFAULT NULL,
+                address TEXT,
+                photo TEXT
            )
         """)
 
@@ -66,24 +68,37 @@ def add_user(user_data):
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO users (IDNO, Lastname, Firstname, Middlename, Course, Year_Level, Email, Username, Password)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (user_data['idno'], user_data['lastname'], user_data['firstname'], user_data['middlename'],
-                 user_data['course'], user_data['year_level'], user_data['email'], user_data['username'], user_data['password']))
+                INSERT INTO users (idno, lastname, firstname, middlename, course, year_level, 
+                                 email, username, password, sessions, address)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (user_data['idno'], user_data['lastname'], user_data['firstname'], 
+                 user_data['middlename'], user_data['course'], user_data['year_level'], 
+                 user_data['email'], user_data['username'], user_data['password'],
+                 None, user_data['address']))
             conn.commit()
             return True  
-    except sqlite3.IntegrityError:  
-        return False  
-
+    except sqlite3.IntegrityError as e:
+        print(f"Database error: {e}")
+        return False
+        
 def check_user(username, password):
     conn = connect_db()
     cursor = conn.cursor()
     try:
         # Check if user exists in the users table
-        cursor.execute('SELECT id, username, password FROM users WHERE username = ?', (username,))
+        cursor.execute('''
+            SELECT idno, username, password, address 
+            FROM users 
+            WHERE username = ?
+        ''', (username,))
         result = cursor.fetchone()
-        if result and check_password_hash(result[2], password):
-            return {"id": result[0], "username": result[1], "role": "user"}
+        if result and check_password_hash(result['password'], password):
+            return {
+                "id": result['idno'],
+                "username": result['username'],
+                "address": result['address'],
+                "role": "user"
+            }
         return None
     finally:
         conn.close()
@@ -201,6 +216,7 @@ def get_user_profile(student_id):
         print(f"Error fetching user profile: {e}")
         return None
 
+#edit
 def initialize_user_sessions(student_idno):
     try:
         conn = get_db_connection()
@@ -290,10 +306,6 @@ def get_all_feedback():
         print(f"Error fetching feedback: {e}")
         return []
 #dbhelper para sa user end/students
-
-
-
-
 
 
 #ADMIN DBHELPER
@@ -412,3 +424,15 @@ def get_sit_in_history(limit=50):
 
 
 #ADMIN DBHELPER
+
+
+#debug purposes
+def cleanup_orphaned_sitins():
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        # Delete sit-in records where the user no longer exists
+        cursor.execute("""
+            DELETE FROM reservations 
+            WHERE idno NOT IN (SELECT idno FROM users)
+        """)
+        conn.commit()

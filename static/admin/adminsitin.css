@@ -532,3 +532,41 @@ tbody tr:hover {
         padding: 15px;
     }
 }
+
+.student-photo {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 2px;
+    vertical-align: middle;
+}
+
+/* Adjust the photo column width */
+table thead th:first-child,
+table tbody td:first-child {
+    width: 50px;
+    text-align: center;
+    padding: 5px;
+}
+
+.reset-session-btn {
+    background-color: #603A75;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.reset-session-btn:hover {
+    background-color: #4a2d5c;
+}
+
+.student-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
