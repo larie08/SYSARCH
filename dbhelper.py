@@ -216,7 +216,6 @@ def get_user_profile(student_id):
         print(f"Error fetching user profile: {e}")
         return None
 
-#edit
 def initialize_user_sessions(student_idno):
     try:
         conn = get_db_connection()

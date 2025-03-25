@@ -36,6 +36,10 @@ body {
     padding: 20px;
 }
 
+.main-content.expanded {
+    margin-left: -250px;
+}
+
 .hamburger-btn {
     background: none;
     border: none;
@@ -84,11 +88,6 @@ body {
 .nav-links li a i {
     margin-right: 10px;
     width: 20px;
-}
-
-.nav-links li a:hover,
-.nav-links li a.active {
-    color: #603A75;
 }
 
 .logout-section {
@@ -293,14 +292,27 @@ body {
 
 /* Modal Styles */
 
-.announcement-section {
+.announcements-card {
     background: white;
     border-radius: 10px;
     padding: 30px;
-    margin: 20px auto;
-    max-width: 800px;
-    width: 100%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+
+.announcement-item {
+    margin-bottom: 30px;
+}
+
+.author {
+    color: #CE9C01;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.announcement-content {
+    margin-bottom: 20px;
 }
 
 .announcement-header {

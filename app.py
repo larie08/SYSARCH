@@ -641,7 +641,6 @@ def admin_current_sitin():
     
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
-
         
         # Update any NULL sessions first
         cursor.execute("""
@@ -655,7 +654,7 @@ def admin_current_sitin():
         """)
         conn.commit()
 
-       # Get current sit-ins with user photo
+        # Get current sit-ins with user photo
         cursor.execute("""
             SELECT 
                 r.idno,
@@ -671,8 +670,35 @@ def admin_current_sitin():
             ORDER BY r.time_in DESC
         """)
         current_sitins = cursor.fetchall()
+    
+    return render_template('admin/admincurrentsitin.html', sitins=current_sitins)
+
+@app.route('/admin/records')
+def admin_records():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
         
-        # Get purpose counts only for active sit-ins
+        # Get completed sit-ins for the table
+        cursor.execute("""
+            SELECT 
+                r.id,
+                r.idno,
+                u.firstname || ' ' || u.lastname as name,
+                r.purpose,
+                r.lab,
+                strftime('%Y-%m-%d %H:%M', r.time_in) as time_in,
+                strftime('%Y-%m-%d %H:%M', r.time_out) as time_out
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            WHERE r.status = 'Completed'
+            ORDER BY r.time_out DESC
+        """)
+        completed_sitins = cursor.fetchall()
+        
+        # Get purpose statistics for chart
         cursor.execute("""
             SELECT 
                 CASE 
@@ -685,14 +711,24 @@ def admin_current_sitin():
                 END as standardized_purpose,
                 COUNT(*) as count
             FROM reservations
-            WHERE status = 'Active' AND time_out IS NULL
+            WHERE status = 'Completed'
             GROUP BY standardized_purpose
         """)
         purpose_counts = dict(cursor.fetchall())
+        
+        # Get laboratory usage statistics
+        cursor.execute("""
+            SELECT lab, COUNT(*) as count
+            FROM reservations
+            WHERE status = 'Completed'
+            GROUP BY lab
+        """)
+        lab_counts = dict(cursor.fetchall())
     
-    return render_template('admin/admincurrentsitin.html', 
-                         sitins=current_sitins,
-                         purpose_counts=purpose_counts)
+    return render_template('admin/records.html', 
+                         records=completed_sitins,
+                         purpose_counts=purpose_counts,
+                         lab_counts=lab_counts)
 
 @app.route('/admin/logout_student', methods=['POST'])
 def logout_student():
@@ -705,13 +741,6 @@ def logout_student():
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
-            
-            # Update the session count for the student
-            cursor.execute("""
-                UPDATE users 
-                SET sessions = sessions - 1 
-                WHERE idno = ?
-            """, (student_id,))
             
             # Update the reservation with logout time and status
             cursor.execute("""
@@ -741,7 +770,6 @@ def logout_student():
     except Exception as e:
         print(f"Database error: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/admin/logout')
 def admin_logout():
@@ -919,23 +947,9 @@ def Session():
         
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
-        # First, ensure correct session initialization
+        # Get both sessions and course
         cursor.execute("""
-            UPDATE users 
-            SET sessions = CASE 
-                WHEN course IN (
-                    'Bachelor of Science in Information Technology',
-                    'Bachelor of Science in Computer Science'
-                ) THEN 30 
-                ELSE 15 
-            END
-            WHERE idno = ? AND (sessions IS NULL OR sessions = 15)
-        """, (session['student_id'],))
-        conn.commit()
-        
-        # Then get the current sessions
-        cursor.execute("""
-            SELECT sessions, course
+            SELECT COALESCE(sessions, 0) as sessions, course
             FROM users 
             WHERE idno = ?
         """, (session['student_id'],))
@@ -943,15 +957,27 @@ def Session():
         result = cursor.fetchone()
         if result:
             current_sessions, course = result
-            total_sessions = 30 if course in [
-                'Bachelor of Science in Information Technology',
-                'Bachelor of Science in Computer Science'
-            ] else 15
+            # Set total sessions based on course
+            is_cs_course = any(program in course for program in [
+                'BSIT',
+                'BSCS'
+            ])
+            total_sessions = 30 if is_cs_course else 15
             
-            available_sessions = int(current_sessions or 0)
+            # If sessions is not properly set, initialize it
+            if current_sessions != total_sessions:
+                cursor.execute("""
+                    UPDATE users 
+                    SET sessions = ?
+                    WHERE idno = ?
+                """, (total_sessions, session['student_id']))
+                conn.commit()
+                current_sessions = total_sessions
+            
+            available_sessions = int(current_sessions)
             used_sessions = total_sessions - available_sessions
         else:
-            total_sessions = 15
+            total_sessions = 15  # Default to lower limit if user not found
             available_sessions = 15
             used_sessions = 0
             

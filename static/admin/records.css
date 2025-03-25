@@ -275,6 +275,25 @@ tbody tr:hover {
     margin-left: -250px;
 }
 
+
+/*CHART*/
+.charts-container {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    gap: 20px;
+    padding: 0 20px;
+}
+
+.chart-wrapper {
+    width: 350px;
+    height: 250px;
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .sidebar {

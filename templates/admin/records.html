@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Current Sit-in - Admin</title>
+    <title>Sit-in Records - Admin</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='admin/admincurrentsitin.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
@@ -20,8 +20,8 @@
             <ul class="nav-links">
                 <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
                 <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
-                <li><a href="{{ url_for('admin_current_sitin') }}" class="active"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
-                <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
+                <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
+                <li><a href="{{ url_for('admin_records') }}" class="active"><i class="fas fa-folder"></i>Sit-in Records</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
                 <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
                 <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
@@ -36,13 +36,23 @@
             </div>
 
         <div class="header">
-            <h1>Current Sit in</h1>
+            <h1>Sit-in Records</h1>
             
+            <div class="content-wrapper">
+                <div class="charts-container" style="display: flex; justify-content: space-between; padding: 20px 40px;">
+                    <div class="chart-wrapper" style="width: 45%;">
+                        <canvas id="purposeChart"></canvas>
+                    </div>
+                    <div class="chart-wrapper" style="width: 45%;">
+                        <canvas id="labChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Photo</th>
                             <th>ID Number</th>
                             <th>Name</th>
                             <th>Purpose</th>
@@ -52,27 +62,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for sitin in sitins %}
+                        {% for record in records %}
                         <tr>
-                            <td class="profile-photo-cell">
-                                {% if sitin[6] %}
-                                    <img src="{{ url_for('static', filename='uploads/' + sitin[6]) }}" alt="Profile Photo" class="profile-photo">
-                                {% else %}
-                                    <img src="{{ url_for('static', filename='images/default.png') }}" alt="Default Photo" class="profile-photo">
-                                {% endif %}
-                            </td>
-                            <td>{{ sitin[0] }}</td>
-                            <td>{{ sitin[1] }}</td>
-                            <td>{{ sitin[2] }}</td>
-                            <td>{{ sitin[3] }}</td>
-                            <td>{{ sitin[4] }}</td>
-                            <td>
-                                {% if not sitin[5] %}
-                                    <button class="logout-button" data-sitin-id="{{ sitin[0] }}">Log Out</button>
-                                {% else %}
-                                    {{ sitin[5] }}
-                                {% endif %}
-                            </td>
+                            <td>{{ record[1] }}</td>
+                            <td>{{ record[2] }}</td>
+                            <td>{{ record[3] }}</td>
+                            <td>{{ record[4] }}</td>
+                            <td>{{ record[5] }}</td>
+                            <td>{{ record[6] }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -136,6 +133,77 @@
                 });
             });
         });
+
+        {% if records %}
+        const purposeData = {
+            labels: ['C#', 'C', 'Java', 'ASP.NET', 'Php'],
+            values: [
+                {{ purpose_counts.get('C#', 0) }},
+                {{ purpose_counts.get('C', 0) }},
+                {{ purpose_counts.get('Java', 0) }},
+                {{ purpose_counts.get('ASP.NET', 0) }},
+                {{ purpose_counts.get('Php', 0) }}
+            ]
+        };
+
+        const labCounts = {{ lab_counts|tojson }};
+
+                // Create Purpose Chart
+                new Chart(document.getElementById('purposeChart'), {
+            type: 'bar',
+            data: {
+                labels: purposeData.labels,
+                datasets: [{
+                    label: 'Purpose Distribution',
+                    data: purposeData.values,
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0',
+                        '#9966FF'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Sit-in Records by Purpose'
+                    }
+                }
+            }
+        });
+
+        // Create Laboratory Chart
+        new Chart(document.getElementById('labChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(labCounts),
+                datasets: [{
+                    data: Object.values(labCounts),
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Laboratory Distribution'
+                    }
+                }
+            }
+        });
+        {% endif %}
     </script>
 </body>
 </html>
