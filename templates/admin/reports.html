@@ -24,6 +24,7 @@
                 <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_pending_reservations') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
                 <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file" class="active"></i></i>Reports</a></li>
                 <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
             </ul>
@@ -40,7 +41,23 @@
                 
                 <div class="reports-container">
                     <div class="reports-header">
-                        <div class="date-filter">
+                        <div class="filter-controls">
+                            <select id="labFilter" class="filter-select">
+                                <option value="">All Laboratories</option>
+                                <option value="Lab 526">Laboratory 526</option>
+                                <option value="Lab 528">Laboratory 528</option>
+                                <option value="Lab 530">Laboratory 530</option>
+                                <option value="Lab 542">Laboratory 542</option>
+                                <option value="Lab 544">Laboratory 544</option>
+                            </select>
+                            <select id="purposeFilter" class="filter-select">
+                                <option value="">All Purposes</option>
+                                <option value="C#">C#</option>
+                                <option value="Java">Java</option>
+                                <option value="PHP">PHP</option>
+                                <option value="ASP.NET">ASP.NET</option>
+                                <option value="C">C</option>
+                            </select>
                             <input type="date" id="dateFilter" class="date-input">
                         </div>
                         <button class="print-btn" onclick="showExportOptions()">
@@ -52,23 +69,21 @@
                         <table class="reports-table">
                             <thead>
                                 <tr>
-                                    <th>Sit-in Number</th>
+                                    <th>Laboratory</th>
+                                    <th>Purpose</th>
                                     <th>ID Number</th>
                                     <th>Name</th>
-                                    <th>Purpose</th>
-                                    <th>Lab</th>
                                     <th>Login</th>
                                     <th>Logout</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="reportsTableBody">
                                 {% for record in records %}
-                                <tr>
-                                    <td>{{ record.id }}</td>
+                                <tr data-lab="{{ record.laboratory }}" data-purpose="{{ record.purpose }}">
+                                    <td>{{ record.laboratory }}</td>
+                                    <td>{{ record.purpose }}</td>
                                     <td>{{ record.idno }}</td>
                                     <td>{{ record.name }}</td>
-                                    <td>{{ record.purpose }}</td>
-                                    <td>{{ record.lab }}</td>
                                     <td>{{ record.time_in }}</td>
                                     <td>{{ record.time_out }}</td>
                                 </tr>
@@ -116,9 +131,37 @@
                 document.getElementById('exportModal').style.display = 'block';
             }
 
+            // Filter functionality
+            function filterReports() {
+                const labFilter = document.getElementById('labFilter').value;
+                const purposeFilter = document.getElementById('purposeFilter').value;
+                const dateFilter = document.getElementById('dateFilter').value;
+                const rows = document.querySelectorAll('#reportsTableBody tr');
+
+                rows.forEach(row => {
+                    const lab = row.getAttribute('data-lab');
+                    const purpose = row.getAttribute('data-purpose');
+                    const date = row.querySelector('td:nth-child(5)').textContent.split(' ')[0]; // Get date from login time
+
+                    const labMatch = !labFilter || lab === labFilter;
+                    const purposeMatch = !purposeFilter || purpose === purposeFilter;
+                    const dateMatch = !dateFilter || date === dateFilter;
+
+                    row.style.display = (labMatch && purposeMatch && dateMatch) ? '' : 'none';
+                });
+            }
+
+            // Add event listeners to filters
+            document.getElementById('labFilter').addEventListener('change', filterReports);
+            document.getElementById('purposeFilter').addEventListener('change', filterReports);
+            document.getElementById('dateFilter').addEventListener('change', filterReports);
+
             function exportReport(format) {
-                const date = document.getElementById('dateFilter').value;
-                window.location.href = `/admin/export_report?format=${format}&date=${date}`;
+                const labFilter = document.getElementById('labFilter').value;
+                const purposeFilter = document.getElementById('purposeFilter').value;
+                const dateFilter = document.getElementById('dateFilter').value;
+                
+                window.location.href = `/admin/export_report?format=${format}&lab=${labFilter}&purpose=${purposeFilter}&date=${dateFilter}`;
                 document.getElementById('exportModal').style.display = 'none';
             }
 

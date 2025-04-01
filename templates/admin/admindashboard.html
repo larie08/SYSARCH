@@ -24,6 +24,7 @@
                 <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_pending_reservations') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
                 <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
                 <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
             </ul>
@@ -61,6 +62,62 @@
                 <h2>Sit-in Statistics</h2>
                 <div class="graph-container">
                     <canvas id="sitInChart"></canvas>
+                </div>
+            </div>
+
+            <!-- New sections below the graph -->
+            <div class="bottom-sections">
+                <div class="left-section">
+                    <h2>Good Students</h2>
+                    <div class="points-container">
+                        <table class="points-table">
+                            <thead>
+                                <tr>
+                                    <th>Photo</th>
+                                    <th>Student</th>
+                                    <th>Points</th>
+                                    <th>Total Sit-ins</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in points_leaderboard %}
+                                <tr>
+                                    <td>
+                                    <img src="{{ url_for('static', filename='uploads/' + (student.photo if student.photo else 'default.png')) }}" 
+                                        alt="Student photo" 
+                                        class="student-photo">
+                                    </td>
+                                    <td>{{ student.name }}</td>
+                                    <td>{{ student.points }}</td>
+                                    <td>{{ student.sitins }}</td>
+                                    <td>
+                                        <button class="add-point-btn" 
+                                                data-student-id="{{ student.idno }}" 
+                                                data-points="{{ student.points }}">
+                                            Add Point
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="right-section">
+                    <h2>Top Performers</h2>
+                    <div class="leaderboard-container">
+                        {% for student in top_performers %}
+                        <div class="leaderboard-card {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
+                            <div class="rank">{{ loop.index }}</div>
+                            <div class="student-info">
+                                <h3>{{ student.name }}</h3>
+                                <p>{{ student.course }}</p>
+                                <p>Hours: {{ student.hours }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
             </div>
@@ -203,6 +260,36 @@
                 });
 
         /*ADD ANNOUNCEMENT MODAL*/
+
+                /*POINTS SYSTEM*/
+                document.querySelectorAll('.add-point-btn').forEach(button => {
+            button.addEventListener('click', async () => {
+                const studentId = button.dataset.studentId;
+                const currentPoints = parseInt(button.dataset.points);
+                
+                try {
+                    const response = await fetch('/admin/add_point', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            student_id: studentId
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        location.reload(); // Refresh to show updated points
+                    } else {
+                        alert(data.error);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Failed to add point');
+                }
+            });
+        });
     </script>
 </body>
 </html>

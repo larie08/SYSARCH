@@ -64,7 +64,7 @@ def login():
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if 'admin_id' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('login'))
         
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
@@ -73,29 +73,10 @@ def admin_dashboard():
         cursor.execute("SELECT COUNT(*) FROM users")
         total_students = cursor.fetchone()[0]
         
-        # Change 'Ongoing' to 'Active' to match the status used in sit-in
+        # Get current sit-ins
         cursor.execute("SELECT COUNT(*) FROM reservations WHERE status = 'Active'")
         current_sitins = cursor.fetchone()[0]
         
-        cursor.execute("""
-            UPDATE users 
-            SET sessions = CASE 
-                WHEN course LIKE '%Information Technology%' 
-                     OR course LIKE '%Computer Science%' THEN 30 
-                ELSE 15 
-            END
-            WHERE sessions IS NULL
-        """)
-        # Get current sit-ins with proper join to users
-        cursor.execute("""
-            SELECT COUNT(*) 
-            FROM reservations r
-            JOIN users u ON r.idno = u.idno
-            WHERE r.status = 'Active'
-        """)
-        current_sitins = cursor.fetchone()[0]
-        
-
         # Get total sit-ins
         cursor.execute("SELECT COUNT(*) FROM reservations")
         total_sitins = cursor.fetchone()[0]
@@ -124,39 +105,262 @@ def admin_dashboard():
             if purpose in chart_data:
                 chart_data[purpose][month_index] = count
 
-    return render_template('admin/admindashboard.html',
-                         chart_data=chart_data,
-                         months=months,
-                         total_students=total_students,
-                         current_sitins=current_sitins,
-                         total_sitins=total_sitins)
+        # Query for points leaderboard
+        cursor.execute("""
+            SELECT 
+                u.firstname || ' ' || u.lastname as name,
+                u.points,
+                COUNT(r.id) as sitins,
+                COALESCE(u.photo, 'default.png') as photo,
+                u.idno
+            FROM users u
+            LEFT JOIN reservations r ON u.idno = r.idno AND r.status = 'Completed'
+            GROUP BY u.idno
+            ORDER BY u.points DESC, sitins DESC
+            LIMIT 5
+        """)
+        points_leaderboard = [
+            {
+                'name': row[0],
+                'points': row[1],
+                'sitins': row[2],
+                'photo': row[3],
+                'idno': row[4]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        # Query for top performers
+        cursor.execute("""
+            SELECT 
+                u.firstname || ' ' || u.lastname as name,
+                u.course,
+                ROUND(SUM(
+                    CASE 
+                        WHEN r.time_out IS NOT NULL 
+                        THEN (julianday(r.time_out) - julianday(r.time_in)) * 24
+                        ELSE 0 
+                    END
+                ), 1) as total_hours
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            WHERE r.status = 'Completed'
+            GROUP BY u.idno
+            ORDER BY total_hours DESC
+            LIMIT 5
+        """)
+        top_performers = [
+            {'name': row[0], 'course': row[1], 'hours': row[2]}
+            for row in cursor.fetchall()
+        ]
+
+        # Single return statement with all data
+        return render_template('admin/admindashboard.html',
+                             chart_data=chart_data,
+                             months=months,
+                             total_students=total_students,
+                             current_sitins=current_sitins,
+                             total_sitins=total_sitins,
+                             points_leaderboard=points_leaderboard,
+                             top_performers=top_performers)
+
+@app.route('/admin/pending_reservations')
+def admin_pending_reservations():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
         
-    # Get total registered students
-    cursor.execute("SELECT COUNT(*) FROM users")
-    total_students = cursor.fetchone()[0]
+        # For testing purposes, let's add some sample data
+        try:
+            cursor.execute("""
+                INSERT INTO users (idno, firstname, lastname, course, sessions, photo) 
+                VALUES 
+                ('2020-00001', 'John', 'Doe', 'BSIT', 30, NULL),
+                ('2020-00002', 'Jane', 'Smith', 'BSCS', 30, NULL)
+            """)
+            
+            cursor.execute("""
+                INSERT INTO reservations (idno, purpose, lab, requested_time, status) 
+                VALUES 
+                ('2020-00001', 'C# Programming', 'MAC Laboratory', datetime('now', 'localtime'), 'Pending'),
+                ('2020-00002', 'Java Development', 'Computer Laboratory 1', datetime('now', 'localtime'), 'Pending')
+            """)
+            conn.commit()
+        except:
+            pass  # Skip if data already exists
+        
+        # Fetch pending reservations
+        cursor.execute("""
+            SELECT 
+                r.id,
+                r.idno,
+                u.firstname || ' ' || COALESCE(u.middlename, '') || ' ' || u.lastname as name,
+                u.course,
+                r.purpose,
+                r.lab,
+                u.sessions,
+                COALESCE(u.photo, 'default.png') as photo
+            FROM reservations r
+            JOIN users u ON r.idno = u.idno
+            WHERE r.status = 'Pending'
+            ORDER BY r.requested_time DESC
+        """)
+        
+        reservations = cursor.fetchall()
+        print("Fetched reservations:", reservations)  # Debug print
+        
+        formatted_reservations = []
+        for r in reservations:
+            reservation_dict = {
+                'id': r[0],
+                'idno': r[1],
+                'name': r[2],
+                'course': r[3],
+                'purpose': r[4],
+                'lab': r[5],
+                'sessions': r[6],
+                'photo': r[7]
+            }
+            formatted_reservations.append(reservation_dict)
+            print("Formatted reservation:", reservation_dict)  # Debug print
     
-    # Get current sit-ins
-    cursor.execute("SELECT COUNT(*) FROM reservations WHERE status = 'Active'")
-    current_sitins = cursor.fetchone()[0]
+    return render_template('admin/adminreservation.html', reservations=formatted_reservations)
+
+@app.route('/admin/process_reservation/<int:reservation_id>/<string:action>', methods=['POST'])
+def process_reservation(reservation_id, action):
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
     
-    # Get total sit-ins
-    cursor.execute("SELECT COUNT(*) FROM reservations")
-    total_sitins = cursor.fetchone()[0]
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            if action == 'approve':
+                cursor.execute("""
+                    UPDATE reservations 
+                    SET status = 'Active', 
+                        time_in = datetime('now', 'localtime')
+                    WHERE id = ?
+                """, (reservation_id,))
+                
+                # Deduct one session from the user
+                cursor.execute("""
+                    UPDATE users 
+                    SET sessions = sessions - 1
+                    WHERE idno = (
+                        SELECT idno FROM reservations WHERE id = ?
+                    )
+                """, (reservation_id,))
+                
+            elif action == 'decline':
+                cursor.execute("""
+                    UPDATE reservations 
+                    SET status = 'Declined'
+                    WHERE id = ?
+                """, (reservation_id,))
+            
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Reservation {action}d successfully'
+            })
+            
+    except Exception as e:
+        print(f"Error processing reservation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/submit_reservation', methods=['POST'])
+def submit_reservation():
+    if 'username' not in session:
+        print("No username in session")
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.get_json()
+    student_id = session.get('student_id')
+    purpose = data.get('purpose')
+    laboratory = data.get('laboratory')
     
-    # Get monthly statistics for labs
-    cursor.execute("""
-        SELECT strftime('%m', time_in) as month, lab, COUNT(*) as count
-        FROM reservations
-        GROUP BY month, lab
-        ORDER BY month
-    """)
-    lab_stats = cursor.fetchall()
+    print(f"Received reservation request - Student ID: {student_id}, Purpose: {purpose}, Lab: {laboratory}")
     
-    return render_template('admin/admindashboard.html', 
-                         total_students=total_students,
-                         current_sitins=current_sitins,
-                         total_sitins=total_sitins,
-                         lab_stats=lab_stats)
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO reservations (idno, purpose, lab, requested_time, status)
+                VALUES (?, ?, ?, datetime('now', 'localtime'), 'Pending')
+            """, (student_id, purpose, laboratory))
+            
+            new_id = cursor.lastrowid
+            print(f"Created reservation with ID: {new_id}")
+            
+            conn.commit()
+            
+            # Verify the insertion
+            cursor.execute("SELECT * FROM reservations WHERE id = ?", (new_id,))
+            new_reservation = cursor.fetchone()
+            print(f"Newly created reservation: {new_reservation}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Reservation submitted for approval'
+            })
+            
+    except Exception as e:
+        print(f"Error submitting reservation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/add_point', methods=['POST'])
+def add_point():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # Get current points
+            cursor.execute("""
+                SELECT points FROM users 
+                WHERE idno = ?
+            """, (student_id,))
+            result = cursor.fetchone()
+            current_points = result[0] if result else 0
+            
+            # Add one point
+            new_points = current_points + 1
+            
+            # If points reach 3, add a session and reset points
+            if new_points >= 3:
+                cursor.execute("""
+                    UPDATE users 
+                    SET points = 0,
+                        sessions = sessions + 1
+                    WHERE idno = ?
+                """, (student_id,))
+            else:
+                cursor.execute("""
+                    UPDATE users 
+                    SET points = ?
+                    WHERE idno = ?
+                """, (new_points, student_id))
+            
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Session added!' if new_points >= 3 else 'Point added successfully'
+            })
+            
+    except Exception as e:
+        print(f"Error adding point: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/sit-in')
 def admin_sitin():
@@ -684,7 +888,7 @@ def admin_records():
         # Get completed sit-ins for the table
         cursor.execute("""
             SELECT 
-                r.id,
+                u.photo,
                 r.idno,
                 u.firstname || ' ' || u.lastname as name,
                 r.purpose,

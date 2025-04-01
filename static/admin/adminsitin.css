@@ -542,6 +542,7 @@ tbody tr:hover {
     object-fit: cover;
     margin: 2px;
     vertical-align: middle;
+    border: 2px solid #CE9C01;
 }
 
 /* Adjust the photo column width */

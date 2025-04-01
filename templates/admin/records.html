@@ -23,6 +23,7 @@
                 <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_records') }}" class="active"><i class="fas fa-folder"></i>Sit-in Records</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_pending_reservations') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
                 <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
                 <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
             </ul>
@@ -53,6 +54,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>Photo</th>
                             <th>ID Number</th>
                             <th>Name</th>
                             <th>Purpose</th>
@@ -64,6 +66,17 @@
                     <tbody>
                         {% for record in records %}
                         <tr>
+                            <td class="profile-photo-cell">
+                                {% if record[0] %}
+                                    <img src="{{ url_for('static', filename='uploads/' + record[0]) }}" 
+                                     alt="Student Photo" 
+                                     class="profile-photo">
+                                {% else %}
+                                    <img src="{{ url_for('static', filename='images/default.png') }}" 
+                                     alt="Default Photo" 
+                                     class="profile-photo">
+                                {% endif %}
+                            </td>
                             <td>{{ record[1] }}</td>
                             <td>{{ record[2] }}</td>
                             <td>{{ record[3] }}</td>

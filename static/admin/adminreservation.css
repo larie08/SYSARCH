@@ -112,6 +112,119 @@ body {
     background-color: #4c2e5d;
 }
 
+/*TABLE*/
+
+.table-container {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background-color: #CE9C01;
+    color: white;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.approve-btn, .decline-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+}
+
+.approve-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.decline-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+.approve-btn:hover {
+    background-color: #218838;
+}
+
+.decline-btn:hover {
+    background-color: #c82333;
+}
+
+.student-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #CE9C01;
+}
+
+.photo-cell {
+    width: 60px;
+    text-align: center;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.approve-btn, .decline-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.approve-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.decline-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+.approve-btn:hover {
+    background-color: #218838;
+}
+
+.decline-btn:hover {
+    background-color: #c82333;
+}
+
+/*TABLE*/
+
 /* Sidebar Styles */
 
 /* Main Content Styles */
@@ -145,170 +258,6 @@ body {
 }
 
 
-/* Profile Photo Styles */
-.profile-photo {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #CE9C01;
-    background-color: #ffffff;
-}
-
-.profile-photo-cell {
-    width: 50px;
-    text-align: center;
-    vertical-align: middle;
-}
-
-.no-data {
-    text-align: center;
-    color: #666;
-    font-style: italic;
-    padding: 20px;
-    width: 100%;
-}
-
-/*SIT IN LOG OUT BUTTON*/
-.logout-button {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.logout-button:hover {
-    background-color: #c82333;
-}
-
-
-/* Table Container */
-.table-container {
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    margin-top: 20px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.table-container table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table-container thead {
-    background-color: #CE9C01;
-}
-
-.table-container th {
-    color: white;
-    padding: 12px 15px;
-    text-align: left;
-    font-weight: 500;
-    font-size: 14px;
-    background-color: #CE9C01;
-}
-
-tbody tr:hover {
-    background-color: #f9f9f9;
-}
-
-.table-container td {
-    padding: 12px 15px;
-    border-bottom: 1px solid #eee;
-    font-size: 14px;
-    color: #333;
-}
-
-/* Main Content Wrapper */
-.content-wrapper {
-    background: white;
-    border-radius: 12px;
-    padding: 25px;
-    margin: 20px auto;
-    max-width: 1000px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-/* Table Container */
-.table-container {
-    margin-top: 25px;
-}
-
-.table-container table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table-container thead tr {
-    background-color: #CE9C01;
-}
-
-.table-container th {
-    color: white;
-    padding: 12px 15px;
-    text-align: left;
-    font-weight: 500;
-    font-size: 14px;
-    white-space: nowrap;
-}
-
-.table-container td {
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-}
-
-.table-container th:first-child,
-.table-container td:first-child {
-    padding-left: 25px;
-}
-
-.table-container th:last-child,
-.table-container td:last-child {
-    padding-right: 25px;
-}
-
-.main-content.expanded {
-    margin-left: -250px;
-}
-
-/* Profile Photo Styles */
-.profile-photo {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #CE9C01;
-    background-color: #ffffff;
-}
-
-.profile-photo-cell {
-    width: 50px;
-    text-align: center;
-    vertical-align: middle;
-}
-
-
-/*CHART*/
-.charts-container {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 30px;
-    gap: 20px;
-    padding: 0 20px;
-}
-
-.chart-wrapper {
-    width: 350px;
-    height: 250px;
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
 
 /* Responsive Design */
 @media (max-width: 1024px) {
