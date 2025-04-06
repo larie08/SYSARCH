@@ -24,6 +24,7 @@
                 <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_resources') }}"><i class="fas fa-bookmark"></i>Resources</a></li>
                 <li><a href="{{ url_for('admin_pending_reservations') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
                 <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
                 <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
@@ -75,8 +76,8 @@
                                 <tr>
                                     <th>Photo</th>
                                     <th>Student</th>
+                                    <th>Course</th>
                                     <th>Points</th>
-                                    <th>Total Sit-ins</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -84,13 +85,13 @@
                                 {% for student in points_leaderboard %}
                                 <tr>
                                     <td>
-                                    <img src="{{ url_for('static', filename='uploads/' + (student.photo if student.photo else 'default.png')) }}" 
-                                        alt="Student photo" 
-                                        class="student-photo">
+                                        <img src="{{ url_for('static', filename='uploads/' + student.photo) }}" 
+                                            alt="Student photo" 
+                                            class="student-photo">
                                     </td>
                                     <td>{{ student.name }}</td>
+                                    <td>{{ student.course }}</td>
                                     <td>{{ student.points }}</td>
-                                    <td>{{ student.sitins }}</td>
                                     <td>
                                         <button class="add-point-btn" 
                                                 data-student-id="{{ student.idno }}" 
@@ -105,18 +106,29 @@
                     </div>
                 </div>
                 <div class="right-section">
-                    <h2>Top Performers</h2>
+                    <h2>Student Sit-in Leaderboard</h2>
                     <div class="leaderboard-container">
-                        {% for student in top_performers %}
-                        <div class="leaderboard-card {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
-                            <div class="rank">{{ loop.index }}</div>
-                            <div class="student-info">
-                                <h3>{{ student.name }}</h3>
-                                <p>{{ student.course }}</p>
-                                <p>Hours: {{ student.hours }}</p>
-                            </div>
+                        <div class="leaderboard-cards">
+                            {% for student in student_leaderboard %}
+                                <div class="leaderboard-card {{ 'gold' if loop.index == 1 else 'silver' if loop.index == 2 else 'bronze' if loop.index == 3 else 'regular' }}">
+                                    <div class="leaderboard-photo">
+                                        <img src="{{ url_for('static', filename='uploads/' + (student[4] if student[4] else 'default.png')) }}" 
+                                             alt="Student photo">
+                                        <img src="{{ url_for('static', filename='images/' + (
+                                            '1st.png' if loop.index == 1 else 
+                                            '2nd.png' if loop.index == 2 else 
+                                            '3rd.png' if loop.index == 3 else 
+                                            '4th.png'
+                                        )) }}" class="place-frame" alt="Place frame">
+                                    </div>
+                                    <div class="student-info">
+                                        <h3 class="student-name">{{ student[0] }} {{ student[1] }}</h3>
+                                        <p class="student-course">{{ student[2] }}</p>
+                                        <p class="sit-in-count">{{ student[3] }} Sit-ins</p>
+                                    </div>
+                                </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
             </div>
