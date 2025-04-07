@@ -1,8 +1,11 @@
 from app import app
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+# Configure app for production
+app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == '__main__':
     app.run()
 
-# Add this for Vercel
 def handler(request, context):
-    return app(request, context)
+    return app.wsgi_app(request, context)
