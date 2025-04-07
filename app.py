@@ -26,6 +26,10 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+@app.route('/')
+def root():
+    return redirect(url_for('login'))
+
 #admin route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -426,13 +430,13 @@ def admin_logout():
 
 
 #STUDENT ROUTES
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if 'username' not in session:
-        return redirect(url_for('login'))
+# @app.route('/', methods=['GET', 'POST'])
+# def index():
+#     if 'username' not in session:
+#         return redirect(url_for('login'))
     
-    reservations = get_all_reservations()
-    return render_template('student/index.html', reservations=reservations)
+#     reservations = get_all_reservations()
+#     return render_template('student/index.html', reservations=reservations)
 
 @app.route('/Dashboard')
 def Dashboard():
@@ -695,4 +699,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run()
