@@ -1,4 +1,8 @@
+from flask import Flask
 from app import app
 
 def handler(request):
-    return app
+    if request.method == "POST":
+        return app(request.environ, lambda x, y: y)
+    else:
+        return app(request.environ, lambda x, y: y)
