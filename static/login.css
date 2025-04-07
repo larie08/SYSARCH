@@ -1,0 +1,195 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+.wrapper {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f5f5f5;
+    padding: 20px;
+}
+
+/*LOGIN STYLES*/
+.login_box {
+    position: relative;
+    width: 450px;
+    background: white;
+    border: 2px solid rgba(96, 58, 117, 0.2);
+    border-radius: 15px;
+    padding: 7.5em 2.5em 4em 2.5em;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.login_header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.round-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin-bottom: 10px;
+}
+
+.login-text {
+    color: #CE9C01;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.input-box {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.input-field {
+    width: 100%;
+    height: 45px;
+    background: transparent;
+    border: 2px solid rgba(96, 58, 117, 0.2);
+    border-radius: 25px;
+    padding: 0 45px 0 20px;
+    font-size: 16px;
+    outline: none;
+}
+
+.input-box label {
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
+    color: #666;
+    pointer-events: none;
+    transition: 0.3s;
+}
+
+.input-field:focus ~ label,
+.input-field:valid ~ label {
+    top: 0;
+    left: 15px;
+    font-size: 12px;
+    padding: 0 5px;
+    background: white;
+    color: #603A75;
+}
+
+.remember-forgot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    font-size: 14px;
+}
+
+.input-submit {
+    width: 100%;
+    height: 45px;
+    background: #603A75;
+    border: none;
+    border-radius: 25px;
+    color: white;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.register {
+    text-align: center;
+    font-size: 14px;
+    color: #666;
+}
+
+.register a {
+    text-decoration: none;
+}
+
+.register a:hover {
+    text-decoration: underline;
+}
+
+/*ALERT*/
+
+.alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 5px;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+}
+
+.alert-success {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.alert-error {
+    background-color: #f44336;
+    color: white;
+}
+
+   /* Auto-hide alerts */
+   @keyframes fadeOut {
+    from {opacity: 1;}
+    to {opacity: 0;}
+}
+
+.alert {
+    animation: fadeOut 0.5s ease 3s forwards;
+}
+
+/*LOGIN STYLES*/
+
+
+
+/*CHANGE PASSWORD STYLES*/
+
+.password-requirements {
+    margin: 10px 0 20px 0;
+    padding: 0 10px;
+}
+
+.password-requirements p {
+    color: #666;
+    font-size: 12px;
+    margin: 3px 0;
+}
+
+.login-text {
+    color: #CE9C01;
+    font-size: 24px;
+    font-weight: 600;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.input-submit {
+    background-color: #603A75;
+    color: white;
+    border: none;
+    width: 100%;
+    padding: 12px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.input-submit:hover {
+    opacity: 0.9;
+}
+
+/*CHANGE PASSWORD STYLES*/
+
+

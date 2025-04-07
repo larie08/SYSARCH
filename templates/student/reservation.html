@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student - Reservation Form</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='student/reservation.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<body>
+    <div class="reservation-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo">
+            </div>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('Dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('Profile') }}"><i class="fas fa-user"></i>Profile</a></li>
+                <li><a href="{{ url_for('Announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('Session') }}"><i class="fas fa-clock"></i>Session</a></li>
+                <li><a href="{{ url_for('History') }}"><i class="fas fa-history"></i>Sit-in History</a></li>
+                <li><a href="{{ url_for('Reservation') }}" class="active"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+                <li><a href="{{ url_for('Resources') }}"><i class="fas fa-bookmark"></i>Resources</a></li>
+            </ul>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
+            </div>
+        </nav>
+        <div class="main-content">
+            <div class="top-bar">
+                <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>  
+            </div>
+            <h1 class="header">Reservation</h1>
+            <div class="main-content">
+                <div class="form-card">
+                    <h2>Sit-in Reservation Form</h2>
+                    <div class="session-info">
+                        <p>Remaining Sessions: {{ user['sessions'] if user['sessions'] is not none else 30 }}/30</p>
+                    </div>
+
+                    <form class="reservation-form" method="POST" action="{{ url_for('Reservation') }}">
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="student_id">Student ID:</label>
+                                <input type="text" id="student_id" name="student_id" value="{{ user['idno'] }}" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="lab">Laboratory:</label>
+                                <select id="lab" name="lab" required>
+                                    <option value="" disabled selected>Select Laboratory</option>
+                                    <option value="Lab 542">Lab 542</option>
+                                    <option value="Lab 544">Lab 544</option>
+                                    <option value="Lab 526">Lab 526</option>
+                                    <option value="Lab 528">Lab 528</option>
+                                    <option value="Lab 530">Lab 530</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="name">Name:</label>
+                                <input type="text" id="name" name="name" value="{{ user['lastname'] }}, {{ user['firstname'] }} {{ user['middlename'] if user['middlename'] else '' }}" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="time_in">Time:</label>
+                                <input type="time" id="time_in" name="time_in" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="purpose">Purpose:</label>
+                                <select id="purpose" name="purpose" required>
+                                    <option value="">Select Purpose</option>
+                                    <option value="C#">C#</option>
+                                    <option value="C">C</option>
+                                    <option value="ASP.NET">ASP.NET</option>
+                                    <option value="Java">Java</option>
+                                    <option value="Php">Php</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <input type="hidden" id="remaining_sessions" name="remaining_sessions" value="{{ user['sessions'] }}">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="reserve-btn">Reserve</button>
+                    </form>
+                </div>
+            </div>
+        </div>        
+    </div>
+    <script>
+        // Sidebar toggle functionality
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        let isSidebarOpen = true;
+    
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.style.left = '0';
+                mainContent.style.marginLeft = '250px';
+            } else {
+                sidebar.style.left = '-250px';
+                mainContent.style.marginLeft = '0';
+            }
+        }
+    
+        sidebarToggle.addEventListener('click', toggleSidebar);
+
+        // Single form submission handler
+        document.querySelector('.reservation-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const remainingSessions = parseInt(document.getElementById('remaining_sessions').value);
+            const lab = document.getElementById('lab').value;
+            const time = document.getElementById('time_in').value;
+            const purpose = document.getElementById('purpose').value;
+            
+            if (!lab || !time || !purpose) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            if (remainingSessions <= 0) {
+                alert('You have no remaining sessions. Please contact an administrator.');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to submit this reservation?')) {
+                alert('Reservation successfully submitted, please wait for the admin\'s confirmation');
+                this.submit();
+            }
+        });
+    </script>
+</body>
+</html>

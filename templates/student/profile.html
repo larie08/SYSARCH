@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE-edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Student - Profile</title>
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='student/profile.css') }}">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    </head>
+    <body>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="profile-container">
+            <nav class="sidebar" id="sidebar">
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo">
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('Dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                    <li><a href="{{ url_for('Profile') }}" class="active"><i class="fas fa-user"></i>Profile</a></li>
+                    <li><a href="{{ url_for('Announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                    <li><a href="{{ url_for('Session') }}"><i class="fas fa-clock"></i>Session</a></li>
+                    <li><a href="{{ url_for('History') }}"><i class="fas fa-history"></i>Sit-in History</a></li>
+                    <li><a href="{{ url_for('Reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+                    <li><a href="{{ url_for('Resources') }}"><i class="fas fa-bookmark"></i>Resources</a></li>
+                </ul>
+                <div class="logout-section">
+                    <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
+                </div>
+            </nav>
+
+            <main class="main-content">
+                <div class="top-bar">
+                    <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>  
+                </div>
+                <h1>Student Profile</h1>
+                <div class="profile-card">
+                    <div class="profile-image">
+                        <form action="{{ url_for('save_photo') }}" method="POST" enctype="multipart/form-data" id="photo-form">
+                            <div class="profile-image-upload">
+                                <img src="{{ url_for('static', filename='uploads/' + user[9]) if user[9] else url_for('static', filename='images/default.png') }}"
+                                     alt="Profile Photo" 
+                                     class="round-circle" 
+                                     id="preview-image">
+                                <label for="photo-upload" class="upload-overlay">
+                                    <i class="fas fa-camera"></i>
+                                    <span>Change Photo</span>
+                                </label>
+                                <input type="file" 
+                                       id="photo-upload" 
+                                       name="photo" 
+                                       accept="image/*"
+                                       onchange="previewImage(this);">
+                            </div>
+                            <button type="submit" class="save-photo-btn" id="save-photo-btn">Save Photo
+                            </button>
+                        </form>
+                    </div>
+                    <div class="profile-info">
+                        <div class="info-item">
+                            <p class="label">Name: </p>
+                            <p class="value">{{ user[2] }} {{ user[3] }} {{ user[1] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Student ID: </p>
+                            <p class="value">{{ user[0] }}</p>
+                        </div>         
+                        <div class="info-item">
+                            <p class="label">Course:</p>
+                            <p class="value">{{ user[4] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Year Level: </p>
+                            <p class="value">{{ user[5] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Email: </p>
+                            <p class="value">{{ user[6] }}</p>
+                        </div>
+                        <div class="info-item">
+                            <p class="label">Address: </p>
+                            <p class="value">{{ user[7] if user[7] else 'No address provided' }}</p>
+                        </div>
+                        <div class="info-item sessions-info">
+                            <p class="label">Remaining Sessions: </p>
+                            <p class="value">{{ user[8] }} / 30</p>
+                        </div>
+                        <button class="edit-profile-btn" onclick="openModal()">Edit Profile</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2></i> Edit Profile</h2>
+                <form action="{{ url_for('Profile') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="user_id" value="{{ user[0] }}">
+                    <div class="input-group">
+                        <label>First Name:</label>
+                        <input type="text" name="firstname" value="{{ user[2] }}">
+                    </div>
+                    <div class="input-group">
+                        <label>Middle Name:</label>
+                        <input type="text" name="middlename" value="{{ user[3] }}">
+                    </div>
+                    <div class="input-group">
+                        <label>Last Name:</label>
+                        <input type="text" name="lastname" value="{{ user[1] }}">
+                    </div>
+                    <div class="input-group">
+                        <label>Course:</label>
+                        <select name="course">
+                            <option value="Bachelor of Science in Information Technology" {{ 'selected' if user[4] == 'Bachelor of Science in Information Technology' }}>Bachelor of Science in Information Technology</option>
+                            <option value="Bachelor of Science in Computer Science" {{ 'selected' if user[4] == 'Bachelor of Science in Computer Science' }}>Bachelor of Science in Computer Science</option>
+                            <option value="Bachelor of Science in Nursing" {{ 'selected' if user[4] == 'Bachelor of Science in Nursing' }}>Bachelor of Science in Nursing</option>
+                            <option value="Bachelor of Science in Hospitality Management" {{ 'selected' if user[4] == 'Bachelor of Science in Hospitality Management' }}>Bachelor of Science in Hospitality Management</option>
+                            <option value="Bachelor of Science in Psychology" {{ 'selected' if user[4] == 'BSPYSCH' }}>Bachelor of Science in Psychology</option>
+                            <option value="Bachelor of Science in Education" {{ 'selected' if user[4] == 'Bachelor of Science in Education' }}>Bachelor of Science in Education</option>
+                        </select>                        
+                    </div>
+                    <div class="input-group">
+                        <label>Year Level:</label>
+                        <select name="yearlevel">
+                            <option value="1st Year" {{ 'selected' if user[5] == '1st Year' }}>1st Year</option>
+                            <option value="2nd Year" {{ 'selected' if user[5] == '2nd Year' }}>2nd Year</option>
+                            <option value="3rd Year" {{ 'selected' if user[5] == '3rd Year' }}>3rd Year</option>
+                            <option value="4th Year" {{ 'selected' if user[5] == '4th Year' }}>4th Year</option>
+                        </select>                        
+                    </div>
+                    <div class="input-group">
+                        <label>Email:</label>
+                        <input type="email" name="email" value="{{ user[6] }}">
+                    </div>
+                    <div class="input-group">
+                        <label>Address:</label>
+                        <textarea name="address" class="address-input" rows="3">{{ user[7] }}</textarea>
+                    </div>
+                    <button type="submit">Save Changes</button>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            function openModal() {
+                document.getElementById("editModal").style.display = "block";
+            }
+            function closeModal() {
+                document.getElementById("editModal").style.display = "none";
+            }
+            function previewImage(input) {
+                if (input.files && input.files[0]) {
+                    // Check file size (limit to 5MB)
+                    if (input.files[0].size > 5 * 1024 * 1024) {
+                        alert('File size too large! Please select an image under 5MB.');
+                        input.value = '';
+                        return;
+                    }
+
+                    const fileType = input.files[0].type;
+                    if (!fileType.startsWith('image/')) {
+                        alert('Please select an image file (JPG, PNG, GIF)');
+                        input.value = '';
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('preview-image').src = e.target.result;
+                        document.getElementById('save-photo-btn').style.display = 'block';
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                }
+            }
+
+            const dropZone = document.querySelector('.profile-image-upload');
+            const fileInput = document.getElementById('photo-upload');
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length) {
+                    fileInput.files = files;
+                    previewImage(fileInput);
+                }
+            });
+            document.addEventListener('DOMContentLoaded', function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    setTimeout(function() {
+                        alert.style.opacity = '0';
+                        setTimeout(function() {
+                            alert.style.display = 'none';
+                        }, 300);
+                    }, 3000);
+                });
+            });
+
+            /*NAV*/
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        let isSidebarOpen = true;
+    
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.style.left = '0';
+                mainContent.style.marginLeft = '250px';
+            } else {
+                sidebar.style.left = '-250px';
+                mainContent.style.marginLeft = '0';
+            }
+        }
+    
+        sidebarToggle.addEventListener('click', toggleSidebar);
+        </script>
+    </body>
+</html>

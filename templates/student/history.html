@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE-edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Student - History</title>
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='student/history.css') }}">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    </head>
+    <body>
+        <div class="history-container">
+            <nav class="sidebar" id="sidebar">
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo">
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('Dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                    <li><a href="{{ url_for('Profile') }}"><i class="fas fa-user"></i>Profile</a></li>
+                    <li><a href="{{ url_for('Announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                    <li><a href="{{ url_for('Session') }}"><i class="fas fa-clock"></i>Session</a></li>
+                    <li><a href="{{ url_for('History') }}" class="active"><i class="fas fa-history"></i>Sit-in History</a></li>
+                    <li><a href="{{ url_for('Reservation') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+                    <li><a href="{{ url_for('Resources') }}"><i class="fas fa-bookmark"></i>Resources</a></li>
+                </ul>
+                <div class="logout-section">
+                    <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
+                </div>
+            </nav>
+
+            <main class="main-content">
+                <div class="top-bar">
+                    <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
+                </div>
+                <h1 class="header">Sit-in History</h1>
+                <div class="history-card">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" placeholder="Search" class="search-input">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+            
+                    <div class="table-container">
+                        <div class="pagination-top">
+                            <span>Showing 1 out 5 entries</span>
+                            <div class="pagination-controls">
+                                <button class="page-btn"><i class="fas fa-chevron-left"></i></button>
+                                <button class="page-btn active">1</button>
+                                <button class="page-btn">2</button>
+                                <button class="page-btn">3</button>
+                                <button class="page-btn"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+
+                <table class="history-table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">ID Number <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(1)">Name <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(2)">Sit-in Purpose <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(3)">Laboratory <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(4)">Login <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(5)">Logout <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(6)">Date <i class="fas fa-sort"></i></th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                            {% for record in history %}
+                            <tr data-id="{{ record.id }}">
+                                <td>{{ record.idno }}</td>
+                                <td>{{ record.name }}</td>
+                                <td>{{ record.purpose }}</td>
+                                <td>{{ record.laboratory }}</td>
+                                <td>{{ record.login }}</td>
+                                <td>{{ record.logout }}</td>
+                                <td>{{ record.date }}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        {% if record.status == 'Completed' %}
+                                            <button class="feedback-btn" onclick="openFeedbackModal('{{ record.id }}')">
+                                                <i class="fas fa-comment"></i>
+                                            </button>
+                                        {% endif %}
+                                        <button class="delete-btn" onclick="deleteRecord('{{ record.id }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Feedback Modal -->
+        <div id="feedbackModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>How's your Experience?</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <textarea id="feedbackText" placeholder="What are your thoughts..." rows="5"></textarea>
+                    <button id="submitFeedback" class="submit-btn">Submit Feedback</button>
+                </div>
+            </div>
+        </div>
+    </main>
+        <script>
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('keyup', function() {
+                let searchQuery = this.value.toLowerCase();
+                let table = document.getElementById('historyTable');
+                let rows = table.getElementsByTagName('tr');
+
+                for (let i = 1; i < rows.length; i++) {
+                    let row = rows[i];
+                    let cells = row.getElementsByTagName('td');
+                    let found = false;
+
+                    for (let j = 0; j < cells.length - 1; j++) {
+                        let cellText = cells[j].textContent.toLowerCase();
+                        if (cellText.includes(searchQuery)) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    row.style.display = found ? '' : 'none';
+                }
+            });
+
+            // Sort table functionality
+            function sortTable(n) {
+                let table = document.getElementById('historyTable');
+                let switching = true;
+                let dir = 'asc';
+                let switchcount = 0;
+
+                while (switching) {
+                    switching = false;
+                    let rows = table.rows;
+
+                    for (let i = 1; i < (rows.length - 1); i++) {
+                        let shouldSwitch = false;
+                        let x = rows[i].getElementsByTagName('td')[n];
+                        let y = rows[i + 1].getElementsByTagName('td')[n];
+                        
+                        if (dir === 'asc') {
+                            if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                                shouldSwitch = true;
+                                break;
+                            }
+                        } else {
+                            if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                                shouldSwitch = true;
+                                break;
+                            }
+                        }
+
+                        if (shouldSwitch) {
+                            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                            switching = true;
+                            switchcount++;
+                        }
+                    }
+
+                    if (switchcount === 0 && dir === 'asc') {
+                        dir = 'desc';
+                        switching = true;
+                    }
+                }
+            }
+
+            // View details function
+            function viewDetails(id) {
+                // Add your view details functionality here
+                console.log('Viewing details for ID:', id);
+            }
+
+            // Sidebar functionality
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            let isSidebarOpen = true;
+
+            function toggleSidebar() {
+                isSidebarOpen = !isSidebarOpen;
+                if (isSidebarOpen) {
+                    sidebar.style.left = '0';
+                    mainContent.style.marginLeft = '250px';
+                } else {
+                    sidebar.style.left = '-250px';
+                    mainContent.style.marginLeft = '0';
+                }
+            }
+
+            sidebarToggle.addEventListener('click', toggleSidebar);
+
+            // Feedback Modal Functions
+            const feedbackModal = document.getElementById('feedbackModal');
+            const closeModal = document.querySelector('.close-modal');
+            let currentSitInId = null;
+
+            function openFeedbackModal(id) {
+                console.log('Opening modal for ID:', id); // Debug line
+                currentSitInId = id;
+                const modal = document.getElementById('feedbackModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    console.error('Modal element not found');
+                }
+            }
+
+            // Close modal when clicking the X
+            if (closeModal) {
+                closeModal.addEventListener('click', function() {
+                    feedbackModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                });
+            }
+
+            // Close modal when clicking outside
+            window.addEventListener('click', function(event) {
+                if (event.target === feedbackModal) {
+                    feedbackModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
+
+            window.onclick = function(event) {
+                if (event.target == feedbackModal) {
+                    feedbackModal.style.display = 'none';
+                    document.body.style.overflow = 'auto'; // Restore scrolling
+                }
+            }
+
+            document.getElementById('submitFeedback').addEventListener('click', function() {
+                const feedbackText = document.getElementById('feedbackText').value;
+                if (!feedbackText.trim()) {
+                    alert('Please enter your feedback');
+                    return;
+                }
+
+                fetch('/submit_feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        reservation_id: currentSitInId,  // Changed from sit_in_id to reservation_id
+                        feedback: feedbackText
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Feedback submitted successfully!');
+                        feedbackModal.style.display = 'none';
+                        document.getElementById('feedbackText').value = '';
+                    } else {
+                        alert('Failed to submit feedback: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while submitting feedback');
+                });
+            });
+            
+            function deleteRecord(id) {
+                if (confirm('Are you sure you want to delete this record?')) {
+                    fetch(`/delete_record/${id}`, {
+                        method: 'DELETE',
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Record deleted successfully!');
+                            location.reload();
+                        } else {
+                            alert('Failed to delete record. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while deleting the record');
+                    });
+                }
+            }
+
+
+        </script>
+    </body>
+</html>

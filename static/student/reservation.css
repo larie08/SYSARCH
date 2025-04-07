@@ -1,0 +1,247 @@
+/* General Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background-color: #f5f5f5;
+}
+
+.reservation-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.main-content {
+    padding: 30px;
+}
+
+.main-content h1 {
+    color: #603A75;
+    margin-bottom: 30px;
+    font-size: 24px;
+}
+
+.form-card {
+    background: white;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    margin: 50px auto;
+    position: absolute;
+    top: 25%;
+    left: 30%;
+    width: 90%;
+}
+
+.form-card h2 {
+    color: #333;
+    margin-bottom: 30px;
+    font-size: 1.5rem;
+}
+
+.form-group-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    flex: 1;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group input[readonly] {
+    background-color: #f5f5f5;
+}
+
+.form-group select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23333' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+}
+
+.reserve-btn {
+    background-color: #603A75;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    display: block;
+    margin: 30px auto 0;
+    width: 200px;
+    transition: background-color 0.3s;
+}
+
+.reserve-btn:hover {
+    background-color: #4c2e5d;
+}
+
+/* Sidebar Styles */
+.sidebar {
+    width: 250px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background-color: white;
+    padding: 20px 0;
+    transition: all 0.3s ease;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.main-content {
+    margin-left: 250px;
+    transition: all 0.3s ease;
+    width: calc(100% - 250px);
+    padding: 20px;
+}
+
+.main-content.expanded {
+    margin-left: -250px;
+}
+
+.logo-container {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.logo {
+    width: 80px;
+    height: auto;
+}
+
+.nav-links {
+    list-style: none;
+    padding: 0;
+    margin-top: 30px;
+}
+
+.nav-links li {
+    padding: 12px 25px;
+}
+
+.nav-links li a {
+    color: #333;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    transition: 0.3s;
+}
+
+.nav-links li a:hover,
+.nav-links li a.active {
+    padding: 8px 12px;
+    border-radius: 5px;
+    color: #603A75;
+    background-color: rgba(96, 58, 117, 0.2);
+}
+
+.nav-links li a i {
+    margin-right: 10px;
+    width: 20px;
+}
+
+.nav-links li a:hover,
+.nav-links li a.active {
+    color: #603A75;
+}
+
+
+.logout-section {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    padding: 0 20px;
+}
+
+.logout-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: #603A75;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: 0.3s;
+}
+
+.logout-btn:hover {
+    background-color: #4c2e5d;
+}
+
+.top-bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.hamburger-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    margin-right: 15px;
+    color: #333;
+}
+
+.session-info {
+    background-color: #f8f9fa;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.session-info p {
+    color: #603A75;
+    font-weight: 500;
+    margin: 0;
+}
+
+
+/* Update responsive styles */
+@media (max-width: 1024px) {
+    .sidebar {
+        left: -250px;
+    }
+    
+    .sidebar.collapsed {
+        left: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    .main-content.expanded {
+        margin-left: 250px;
+        width: calc(100% - 250px);
+    }
+}

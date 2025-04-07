@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE-edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin/reports.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo"><br>
+                <span class="admin-text">CCS Admin</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
+                <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
+                <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_resources') }}"><i class="fas fa-bookmark"></i>Resources</a></li>
+                <li><a href="{{ url_for('admin_pending_reservations') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+                <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file" class="active"></i></i>Reports</a></li>
+                <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
+            </ul>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
+            </div>
+        </nav>
+        <div class="main-content">
+            <div class="top-bar">
+                <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
+            </div>
+            <div class="reports-section">
+                <h1>Sit-in Reports</h1>
+                
+                <div class="reports-container">
+                    <div class="reports-header">
+                        <div class="filter-controls">
+                            <select id="labFilter" class="filter-select">
+                                <option value="">All Laboratories</option>
+                                <option value="Lab 526">Laboratory 526</option>
+                                <option value="Lab 528">Laboratory 528</option>
+                                <option value="Lab 530">Laboratory 530</option>
+                                <option value="Lab 542">Laboratory 542</option>
+                                <option value="Lab 544">Laboratory 544</option>
+                            </select>
+                            <select id="purposeFilter" class="filter-select">
+                                <option value="">All Purposes</option>
+                                <option value="C#">C#</option>
+                                <option value="Java">Java</option>
+                                <option value="PHP">PHP</option>
+                                <option value="ASP.NET">ASP.NET</option>
+                                <option value="C">C</option>
+                            </select>
+                            <input type="date" id="dateFilter" class="date-input">
+                        </div>
+                        <button class="print-btn" onclick="showExportOptions()">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="reports-table">
+                            <thead>
+                                <tr>
+                                    <th>Laboratory</th>
+                                    <th>Purpose</th>
+                                    <th>ID Number</th>
+                                    <th>Name</th>
+                                    <th>Login</th>
+                                    <th>Logout</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportsTableBody">
+                                {% for record in records %}
+                                <tr data-lab="{{ record.laboratory }}" data-purpose="{{ record.purpose }}">
+                                    <td>{{ record.laboratory }}</td>
+                                    <td>{{ record.purpose }}</td>
+                                    <td>{{ record.idno }}</td>
+                                    <td>{{ record.name }}</td>
+                                    <td>{{ record.time_in }}</td>
+                                    <td>{{ record.time_out }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Options Modal -->
+        <div id="exportModal" class="modal">
+            <div class="modal-content">
+                <h2>Select Export Format</h2>
+                <div class="export-options">
+                    <button onclick="exportReport('csv')">CSV</button>
+                    <button onclick="exportReport('excel')">Excel</button>
+                    <button onclick="exportReport('pdf')">PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            /*SIDEBAR*/
+            const sidebar = document.getElementById('sidebar');
+                const mainContent = document.querySelector('.main-content');
+                const sidebarToggle = document.getElementById('sidebar-toggle');
+                let isSidebarOpen = true;
+            
+                function toggleSidebar() {
+                    isSidebarOpen = !isSidebarOpen;
+                    if (isSidebarOpen) {
+                        sidebar.style.left = '0';
+                        mainContent.style.marginLeft = '250px';
+                    } else {
+                        sidebar.style.left = '-250px';
+                        mainContent.style.marginLeft = '0';
+                    }
+                }
+            
+                sidebarToggle.addEventListener('click', toggleSidebar);
+            
+            function showExportOptions() {
+                document.getElementById('exportModal').style.display = 'block';
+            }
+
+            // Filter functionality
+            function filterReports() {
+                const labFilter = document.getElementById('labFilter').value;
+                const purposeFilter = document.getElementById('purposeFilter').value;
+                const dateFilter = document.getElementById('dateFilter').value;
+                const rows = document.querySelectorAll('#reportsTableBody tr');
+
+                rows.forEach(row => {
+                    const lab = row.getAttribute('data-lab');
+                    const purpose = row.getAttribute('data-purpose');
+                    const date = row.querySelector('td:nth-child(5)').textContent.split(' ')[0]; // Get date from login time
+
+                    const labMatch = !labFilter || lab === labFilter;
+                    const purposeMatch = !purposeFilter || purpose === purposeFilter;
+                    const dateMatch = !dateFilter || date === dateFilter;
+
+                    row.style.display = (labMatch && purposeMatch && dateMatch) ? '' : 'none';
+                });
+            }
+
+            // Add event listeners to filters
+            document.getElementById('labFilter').addEventListener('change', filterReports);
+            document.getElementById('purposeFilter').addEventListener('change', filterReports);
+            document.getElementById('dateFilter').addEventListener('change', filterReports);
+
+            function exportReport(format) {
+                const labFilter = document.getElementById('labFilter').value;
+                const purposeFilter = document.getElementById('purposeFilter').value;
+                const dateFilter = document.getElementById('dateFilter').value;
+                
+                window.location.href = `/admin/export_report?format=${format}&lab=${labFilter}&purpose=${purposeFilter}&date=${dateFilter}`;
+                document.getElementById('exportModal').style.display = 'none';
+            }
+
+            // Close modal when clicking outside
+            window.onclick = function(event) {
+                const modal = document.getElementById('exportModal');
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        </script>

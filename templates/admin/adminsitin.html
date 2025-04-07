@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Sit-in</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin/adminsitin.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="CCS Logo" class="logo"><br>
+                <span class="admin-text">CCS Admin</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop" class="active"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
+                <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
+                <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_resources') }}"><i class="fas fa-bookmark"></i>Resources</a></li>
+                <li><a href="{{ url_for('admin_pending_reservations') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+                <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
+                <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
+            </ul>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
+            </div>
+        </nav>
+
+        <div class="main-content">
+            <div class="header">
+                <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>  
+                <h1>Sit-in</h1>
+            </div>
+
+            <div class="content-body">
+                <div class="department-header">
+                    <div class="header-left">
+                        <h2>College of Computer Studies Department</h2>
+                        <p>Student Directory</p>
+                        <button class="sit-in-btn">Add Sit-in</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Photo</th>
+                                <th>ID Number</th>
+                                <th>Name</th>
+                                <th>Course</th>
+                                <th>Year Level</th>
+                                <th>Remaining Sessions</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    {% if user.photo %}
+                                        <img src="{{ url_for('static', filename='uploads/' + user.photo) }}" 
+                                         alt="Student Photo" 
+                                         class="student-photo">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='images/default.png') }}" 
+                                         alt="Default Photo" 
+                                         class="student-photo">
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.idno }}</td>
+                                <td>{{ user.name }}</td>
+                                <td>{{ user.course }}</td>
+                                <td>{{ user.year_level }}</td>
+                                <td>{{ user.remaining_sessions }}</td>
+                                <td>
+                                    <button class="reset-session-btn" 
+                                            onclick="resetSession('{{ user.idno }}', '{{ user.course }}')">
+                                        Reset Session
+                                    </button>
+                                </td>
+                                <td>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Search Modal -->
+    <div class="modal" id="searchModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Search Student</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="studentId">Student ID Number:</label>
+                    <input type="text" id="studentId" name="studentId" required>
+                </div>
+                <button type="button" class="search-button" onclick="searchStudent()">Search</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sit-in Form Modal -->
+    <div class="modal" id="sitInModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Sit-in Form</h2>
+                <span class="close-btn-sitin">&times;</span>
+            </div>
+            <div class="modal-body">
+                <table class="sit-in-table">
+                    <thead>
+                        <tr>
+                            <th>ID Number</th>
+                            <th>Name</th>
+                            <th>Purpose</th>
+                            <th>Laboratory</th>
+                            <th>Remaining Session</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="studentDetails">
+                            <!-- This will be populated by JavaScript -->
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" class="sit-in-button">Sit-in Student</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        /*SIDEBAR*/
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        let isSidebarOpen = true;
+    
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.style.left = '0';
+                mainContent.style.marginLeft = '250px';
+            } else {
+                sidebar.style.left = '-250px';
+                mainContent.style.marginLeft = '0';
+            }
+        }
+    
+        sidebarToggle.addEventListener('click', toggleSidebar);
+
+
+        /*SIT IN MODAL*/
+
+        const searchModal = document.getElementById('searchModal');
+        const sitInModal = document.getElementById('sitInModal');
+        const sitInBtn = document.querySelector('.sit-in-btn');
+        const closeBtn = document.querySelector('.close-btn');
+        const closeBtnSitIn = document.querySelector('.close-btn-sitin');
+
+        sitInBtn.addEventListener('click', () => {
+            searchModal.style.display = 'block';
+        });
+
+        closeBtn.addEventListener('click', () => {
+            searchModal.style.display = 'none';
+        });
+
+        closeBtnSitIn.addEventListener('click', () => {
+            sitInModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === searchModal) {
+                searchModal.style.display = 'none';
+            }
+            if (e.target === sitInModal) {
+                sitInModal.style.display = 'none';
+            }
+        });
+
+        function searchStudent() {
+            const studentId = document.getElementById('studentId').value;
+            if (!studentId) {
+                alert('Please enter a student ID');
+                return;
+            }
+            
+            fetch(`/admin/search_student/${studentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    
+                    // Populate the sit-in form
+                    const studentDetails = document.getElementById('studentDetails');
+                    studentDetails.innerHTML = `
+                        <td>${data.id}</td>
+                        <td>${data.name}</td>
+                        <td>
+                            <select id="purpose" name="purpose" required>
+                                <option value="">Select Purpose</option>
+                                <option value="C#">C#</option>
+                                <option value="C">C</option>
+                                <option value="ASP.NET">ASP.NET</option>
+                                <option value="Java">Java</option>
+                                <option value="Php">Php</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select id="laboratory" name="laboratory" required>
+                                <option value="">Select Laboratory</option>
+                                    <option value="Lab 542">Lab 542</option>
+                                    <option value="Lab 544">Lab 544</option>
+                                    <option value="Lab 526">Lab 526</option>
+                                    <option value="Lab 528">Lab 528</option>
+                                    <option value="Lab 530">Lab 530</option>
+                            </select>
+                        </td>
+                        <td>${data.remainingSession}</td>
+                    `;
+
+              
+                    searchModal.style.display = 'none';
+                    sitInModal.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Student not found. Please check the ID number.');
+                });
+        }
+
+        /*SIT IN MODAL*/
+
+        const sitInButton = document.querySelector('.sit-in-button');
+        
+        sitInButton.addEventListener('click', () => {
+            const studentId = document.querySelector('#studentDetails td:first-child').textContent;
+            const purpose = document.querySelector('#purpose').value;
+            const laboratory = document.querySelector('#laboratory').value;
+        
+            if (!purpose || !laboratory) {
+                alert('Please select both purpose and laboratory');
+                return;
+            }
+        
+            fetch('/admin/sit_in_student', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    purpose: purpose,
+                    laboratory: laboratory
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Student successfully registered for sit-in');
+                    sitInModal.style.display = 'none';
+                    window.location.href = '/admin/current-sitin';  // Redirect to current sit-in page
+                } else {
+                    alert(data.error || 'Failed to register student for sit-in');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while processing the request');
+            });
+        });   
+        
+        function resetSession(studentId, course) {
+            if (confirm('Are you sure you want to reset this student\'s session?')) {
+                fetch('/admin/reset_session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        course: course
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Session reset successfully!');
+                        location.reload(); // Refresh the page to show updated session count
+                    } else {
+                        alert('Failed to reset session: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while resetting the session');
+                });
+            }
+        }
+    </script>
+</body>
+</html>
