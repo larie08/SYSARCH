@@ -3,6 +3,7 @@ from dbhelper import *
 from werkzeug.security import check_password_hash
 from flask import send_file
 import os
+from pathlib import Path
 import io
 import csv
 import pandas as pd
@@ -17,12 +18,10 @@ app.secret_key = 'tonifowlersupersecretkey'
 
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+DB_PATH = os.path.join(os.path.dirname(__file__), 'users.db')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  
-
-with app.app_context():
-    create_tables()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -35,7 +34,7 @@ def login():
         password = request.form.get('password')
         
         # First check admin credentials
-        with sqlite3.connect("users.db") as conn:
+        with sqlite3.connect (DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM admin WHERE username = ? AND password = ?", (username, password))
             admin = cursor.fetchone()
@@ -46,7 +45,7 @@ def login():
                 return redirect(url_for('admin_dashboard'))
         
         # If not admin, check student credentials
-        with sqlite3.connect("users.db") as conn:
+        with sqlite3.connect (DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT IDNO, Password, username FROM users WHERE username = ?", (username,))
             user = cursor.fetchone()
