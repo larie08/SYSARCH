@@ -1,8 +1,12 @@
-from flask import Flask
 from app import app
+from flask import Flask, Request
+
+def create_app():
+    return app
+
+app = create_app()
 
 def handler(request):
-    if request.method == "POST":
-        return app(request.environ, lambda x, y: y)
-    else:
-        return app(request.environ, lambda x, y: y)
+    """Handle incoming requests."""
+    with app.request_context(request):
+        return app
