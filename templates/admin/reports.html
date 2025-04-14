@@ -101,12 +101,14 @@
             <div class="modal-content">
                 <h2>Select Export Format</h2>
                 <div class="export-options">
-                    <button onclick="exportReport('csv')">CSV</button>
-                    <button onclick="exportReport('excel')">Excel</button>
-                    <button onclick="exportReport('pdf')">PDF</button>
+                    <button type="button" onclick="submitExport('csv')">CSV</button>
+                    <button type="button" onclick="submitExport('excel')">Excel</button>
+                    <button type="button" onclick="submitExport('pdf')">PDF</button>
                 </div>
+                <span class="close" onclick="closeModal()">&times;</span>
             </div>
         </div>
+    </div>
 
         <script>
             /*SIDEBAR*/
@@ -128,8 +130,14 @@
             
                 sidebarToggle.addEventListener('click', toggleSidebar);
             
-            function showExportOptions() {
-                document.getElementById('exportModal').style.display = 'block';
+                function showExportOptions() {
+                const modal = document.getElementById('exportModal');
+                modal.style.display = 'block';
+            }
+
+            function closeModal() {
+                const modal = document.getElementById('exportModal');
+                modal.style.display = 'none';
             }
 
             // Filter functionality
@@ -157,15 +165,6 @@
             document.getElementById('purposeFilter').addEventListener('change', filterReports);
             document.getElementById('dateFilter').addEventListener('change', filterReports);
 
-            function exportReport(format) {
-                const labFilter = document.getElementById('labFilter').value;
-                const purposeFilter = document.getElementById('purposeFilter').value;
-                const dateFilter = document.getElementById('dateFilter').value;
-                
-                window.location.href = `/admin/export_report?format=${format}&lab=${labFilter}&purpose=${purposeFilter}&date=${dateFilter}`;
-                document.getElementById('exportModal').style.display = 'none';
-            }
-
             // Close modal when clicking outside
             window.onclick = function(event) {
                 const modal = document.getElementById('exportModal');
@@ -173,4 +172,34 @@
                     modal.style.display = 'none';
                 }
             }
-        </script>
+            
+            // Close modal when clicking outside
+            window.onclick = function(event) {
+                const modal = document.getElementById('exportModal');
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            }
+
+            function submitExport(format) {
+                const labFilter = document.getElementById('labFilter').value;
+                const purposeFilter = document.getElementById('purposeFilter').value;
+                const dateFilter = document.getElementById('dateFilter').value;
+
+                // Create URL with parameters
+                const url = `/admin/export_report?format=${format}&lab=${encodeURIComponent(labFilter || 'All Laboratories')}&purpose=${encodeURIComponent(purposeFilter || 'All Purposes')}&date=${encodeURIComponent(dateFilter)}`;
+
+                // Create temporary link for download
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `sit_in_report.${format}`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Close the modal
+                closeModal();
+            }
+</script>
+</body>
+</html>

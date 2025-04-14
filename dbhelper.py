@@ -1,6 +1,12 @@
-from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
-from sqlite3 import Row
+import csv
+import io
+import xlsxwriter
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
+from datetime import datetime
 
 def connect_db():
     conn = sqlite3.connect('users.db')
@@ -995,25 +1001,43 @@ def process_reservation_action(reservation_id, action):
 # admin reservations end
 
 # admin sesison start
-def reset_student_sessions(student_id, course):
+def reset_student_sessions(student_id, course, session_limit):
     try:
-        session_limit = 30 if any(program in course for program in [
-            'Bachelor of Science in Information Technology',
-            'Bachelor of Science in Computer Science'
-        ]) else 15
-        
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE users 
-                SET sessions = ? 
-                WHERE idno = ?
-            """, (session_limit, student_id))
-            conn.commit()
+                SET sessions = ?
+                WHERE IDNO = ? AND course = ?
+            """, (session_limit, student_id, course))
             
-            return cursor.rowcount > 0, None
+            if cursor.rowcount > 0:
+                conn.commit()
+                return True, None
+            return False, "Student not found"
             
     except Exception as e:
+        print(f"Database error: {e}")
+        return False, str(e)
+
+def reset_all_student_sessions():
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE users 
+                SET sessions = CASE 
+                    WHEN course IN ('Bachelor of Science in Information Technology', 
+                                  'Bachelor of Science in Computer Science',
+                                  'BSIT', 'BSCS') THEN 30 
+                    ELSE 15 
+                END
+            """)
+            conn.commit()
+            affected_rows = cursor.rowcount
+            return True, f'Successfully reset {affected_rows} student sessions'
+    except Exception as e:
+        print(f"Database error: {e}")
         return False, str(e)
 
 def update_null_sessions():
@@ -1368,23 +1392,32 @@ def get_completed_reports():
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT 
-                    r.id as sit_in_number,
+                    r.id,
                     r.idno,
-                    u.firstname || ' ' || u.lastname as name,
+                    u.firstname || ' ' || COALESCE(u.middlename, '') || ' ' || u.lastname as name,
                     r.purpose,
                     r.lab,
-                    strftime('%Y-%m-%d %H:%M', r.time_in) as login,
-                    strftime('%Y-%m-%d %H:%M', r.time_out) as logout
+                    strftime('%Y-%m-%d %H:%M', r.time_in) as time_in,
+                    strftime('%Y-%m-%d %H:%M', r.time_out) as time_out
                 FROM reservations r
                 JOIN users u ON r.idno = u.idno
                 WHERE r.status = 'Completed'
                 ORDER BY r.time_in DESC
             """)
-            records = [dict(zip(['id', 'idno', 'name', 'purpose', 'laboratory', 'time_in', 'time_out'], row)) 
-                      for row in cursor.fetchall()]
-            return records
+            records = cursor.fetchall()
+            
+            # Convert to list of dictionaries
+            return [{
+                'id': record[0],
+                'idno': record[1],
+                'name': record[2],
+                'purpose': record[3],
+                'laboratory': record[4],
+                'time_in': record[5],
+                'time_out': record[6]
+            } for record in records]
     except Exception as e:
-        print(f"Error fetching reports: {e}")
+        print(f"Error fetching completed reports: {e}")
         return []
 
 def get_completed_sit_in_records():
@@ -1410,49 +1443,212 @@ def get_completed_sit_in_records():
         print(f"Error fetching completed records: {e}")
         return []
 
+def get_filtered_records(lab=None, purpose=None, date=None):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            query = """
+                SELECT 
+                    r.idno,
+                    u.firstname || ' ' || COALESCE(u.middlename, '') || ' ' || u.lastname as name,
+                    r.lab,
+                    r.purpose,
+                    strftime('%Y-%m-%d %H:%M', r.time_in) as time_in,
+                    strftime('%Y-%m-%d %H:%M', r.time_out) as time_out
+                FROM reservations r
+                JOIN users u ON r.idno = u.idno
+                WHERE r.status = 'Completed'
+            """
+            params = []
+            
+            if lab and lab != 'All Laboratories':
+                query += " AND r.lab = ?"
+                params.append(lab)
+            if purpose and purpose != 'All Purposes':
+                query += " AND r.purpose = ?"
+                params.append(purpose)
+            if date:
+                query += " AND date(r.time_in) = ?"
+                params.append(date)
+                
+            query += " ORDER BY r.time_in DESC"
+            
+            cursor.execute(query, params)
+            records = cursor.fetchall()
+            
+            return [{
+                'idno': record[0],
+                'name': record[1],
+                'laboratory': record[2],
+                'purpose': record[3],
+                'time_in': record[4],
+                'time_out': record[5] if record[5] else 'Not logged out'
+            } for record in records]
+            
+    except Exception as e:
+        print(f"Error getting filtered records: {e}")
+        return []
+
 def export_to_csv(records):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Sit-in Number', 'ID Number', 'Name', 'Purpose', 'Laboratory', 'Login', 'Logout'])
-    writer.writerows(records)
-    output.seek(0)
-    return io.BytesIO(output.getvalue().encode('utf-8'))
+    try:
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write headers with proper formatting
+        writer.writerow(['UNIVERSITY OF CEBU MAIN CAMPUS'])
+        writer.writerow(['COLLEGE OF COMPUTER STUDIES'])
+        writer.writerow(['COMPUTER LABORATORY SIT-IN MONITORING SYSTEM'])
+        writer.writerow([])  # Empty row for spacing
+        writer.writerow(['Generated on:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        writer.writerow([])  # Empty row for spacing
+        writer.writerow(['ID Number', 'Name', 'Laboratory', 'Purpose', 'Login Time', 'Logout Time'])
+        
+        # Write data
+        for record in records:
+            writer.writerow([
+                record['idno'],
+                record['name'],
+                record['laboratory'],
+                record['purpose'],
+                record['time_in'],
+                record['time_out']
+            ])
+        
+        # Ensure proper encoding and return bytes
+        output.seek(0)
+        return io.BytesIO(output.getvalue().encode('utf-8-sig'))
+    except Exception as e:
+        print(f"Error exporting to CSV: {e}")
+        return None
 
 def export_to_excel(records):
-    df = pd.DataFrame(records, columns=['Sit-in Number', 'ID Number', 'Name', 'Purpose', 'Laboratory', 'Login', 'Logout'])
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, sheet_name='Sit-in Report', index=False)
-    output.seek(0)
-    return output
+    try:
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+        worksheet = workbook.add_worksheet()
+        
+        # Define formats
+        title_format = workbook.add_format({
+            'bold': True,
+            'font_size': 16,
+            'align': 'center',
+            'font_name': 'Arial'
+        })
+        header_format = workbook.add_format({
+            'bold': True,
+            'font_size': 12,
+            'align': 'center',
+            'border': 1,
+            'bg_color': '#603A75',
+            'font_color': 'white'
+        })
+        data_format = workbook.add_format({
+            'align': 'center',
+            'border': 1
+        })
+        
+        # Write titles and headers
+        worksheet.merge_range('A1:F1', 'UNIVERSITY OF CEBU MAIN CAMPUS', title_format)
+        worksheet.merge_range('A2:F2', 'COLLEGE OF COMPUTER STUDIES', title_format)
+        worksheet.merge_range('A3:F3', 'COMPUTER LABORATORY SIT-IN MONITORING SYSTEM', title_format)
+        
+        # Write data with proper formatting
+        headers = ['ID Number', 'Name', 'Laboratory', 'Purpose', 'Login Time', 'Logout Time']
+        for col, header in enumerate(headers):
+            worksheet.write(5, col, header, header_format)
+            worksheet.set_column(col, col, 15)  # Set column width
+        
+        for row, record in enumerate(records, start=6):
+            data = [
+                record['idno'],
+                record['name'],
+                record['laboratory'],
+                record['purpose'],
+                record['time_in'],
+                record['time_out']
+            ]
+            for col, value in enumerate(data):
+                worksheet.write(row, col, value, data_format)
+        
+        workbook.close()
+        output.seek(0)
+        return output
+    except Exception as e:
+        print(f"Error exporting to Excel: {e}")
+        return None
 
 def export_to_pdf(records):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    elements = []
-    
-    table_data = [['Sit-in Number', 'ID Number', 'Name', 'Purpose', 'Laboratory', 'Login', 'Logout']]
-    table_data.extend(records)
-    
-    table = Table(table_data)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#603A75')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.Color(0.9, 0.9, 0.9)])
-    ]))
-    
-    elements.append(table)
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
+    try:
+        buffer = io.BytesIO()
+        
+        # Create PDF document with proper margins
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=30,
+            leftMargin=30,
+            topMargin=30,
+            bottomMargin=30
+        )
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Add headers with proper styling
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            alignment=1,
+            spaceAfter=10
+        )
+        
+        elements.extend([
+            Paragraph("UNIVERSITY OF CEBU MAIN CAMPUS", title_style),
+            Paragraph("COLLEGE OF COMPUTER STUDIES", title_style),
+            Paragraph("COMPUTER LABORATORY SIT-IN MONITORING SYSTEM", title_style),
+            Spacer(1, 20)
+        ])
+        
+        # Create table with data
+        table_data = [['ID Number', 'Name', 'Laboratory', 'Purpose', 'Login Time', 'Logout Time']]
+        for record in records:
+            table_data.append([
+                record['idno'],
+                record['name'],
+                record['laboratory'],
+                record['purpose'],
+                record['time_in'],
+                record['time_out']
+            ])
+        
+        # Style the table
+        table = Table(table_data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#603A75')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BOX', (0, 0), (-1, -1), 2, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        buffer.seek(0)
+        pdf_data = buffer.getvalue()
+        buffer.close() 
+
+        final_buffer = io.BytesIO(pdf_data)
+        final_buffer.seek(0)
+        return final_buffer
+    except Exception as e:
+        print(f"Error exporting to PDF: {e}")
+        return None
 # admin report end
 
 

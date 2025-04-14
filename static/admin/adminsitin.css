@@ -462,6 +462,20 @@ tbody tr:hover {
     color: white;
 }
 
+.reset-all-btn {
+    background-color: #603A75;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.reset-all-btn:hover {
+    background-color: #4a2d5c;
+}
+
 
 /*SIT-IN MODAL*/
 

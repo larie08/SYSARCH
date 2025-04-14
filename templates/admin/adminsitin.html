@@ -44,6 +44,7 @@
                         <h2>College of Computer Studies Department</h2>
                         <p>Student Directory</p>
                         <button class="sit-in-btn">Add Sit-in</button>
+                        <button class="reset-all-btn">Reset All Sessions</button>
                     </div>
                 </div>
 
@@ -316,6 +317,35 @@
                 });
             }
         }
+
+                // ... existing code ...
+
+            function resetAllSessions() {
+            if (confirm('Are you sure you want to reset sessions for all students? This action cannot be undone.')) {
+                fetch('/admin/reset_all_sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload(); // Refresh the page to show updated session counts
+                    } else {
+                        alert('Failed to reset sessions: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while resetting sessions');
+                });
+            }
+        }
+
+        // Add event listener for the reset all button
+        document.querySelector('.reset-all-btn').addEventListener('click', resetAllSessions);
     </script>
 </body>
 </html>

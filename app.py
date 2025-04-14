@@ -1,16 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from dbhelper import *
-from werkzeug.security import check_password_hash
-from flask import send_file
-import os
 import io
+import os
 import csv
 import pandas as pd
+from datetime import datetime
+import xlsxwriter
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-from werkzeug.utils import secure_filename
-import time
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'tonifowlersupersecretkey'
@@ -164,7 +165,10 @@ def reset_session():
     student_id = data.get('student_id')
     course = data.get('course')
     
-    success, error = reset_student_sessions(student_id, course)
+    # Set session limit based on course
+    session_limit = 30 if course in ['BSIT', 'BSCS'] else 15
+    
+    success, error = reset_student_sessions(student_id, course, session_limit)
     
     if success:
         return jsonify({'success': True})
@@ -172,6 +176,19 @@ def reset_session():
     error_message = error or 'Student not found'
     print(f"Error resetting session: {error_message}")
     return jsonify({'success': False, 'error': error_message}), 500
+
+@app.route('/admin/reset_all_sessions', methods=['POST'])
+def reset_all_sessions():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    
+    success, message = reset_all_student_sessions()
+    
+    if success:
+        return jsonify({'success': True, 'message': message})
+    
+    print(f"Error resetting all sessions: {message}")
+    return jsonify({'success': False, 'error': message}), 500
 
 @app.route('/admin/resources', methods=['GET', 'POST'])
 def admin_resources():
@@ -241,40 +258,60 @@ def export_report():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
     
-    export_format = request.args.get('format')
-    if not export_format:
-        flash('Please select a file format', 'error')
-        return redirect(url_for('admin_reports'))
-    
     try:
-        records = get_completed_sit_in_records()
+        # Get filter parameters
+        export_format = request.args.get('format', '').lower()
+        lab = request.args.get('lab')
+        purpose = request.args.get('purpose')
+        date = request.args.get('date')
         
+        # Get filtered records
+        filtered_records = get_filtered_records(lab, purpose, date)
+        
+        if not filtered_records:
+            return jsonify({'error': 'No records found'}), 404
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Generate the report based on format
         if export_format == 'csv':
-            output = export_to_csv(records)
+            output = export_to_csv(filtered_records)
             mimetype = 'text/csv'
-            filename = 'sit_in_report.csv'
+            filename = f'sit_in_report_{timestamp}.csv'
         elif export_format == 'excel':
-            output = export_to_excel(records)
+            output = export_to_excel(filtered_records)
             mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            filename = 'sit_in_report.xlsx'
+            filename = f'sit_in_report_{timestamp}.xlsx'
         elif export_format == 'pdf':
-            output = export_to_pdf(records)
+            output = export_to_pdf(filtered_records)
             mimetype = 'application/pdf'
-            filename = 'sit_in_report.pdf'
+            filename = f'sit_in_report_{timestamp}.pdf'
         else:
-            flash('Invalid file format selected', 'error')
-            return redirect(url_for('admin_reports'))
+            return jsonify({'error': 'Invalid export format'}), 400
         
-        return send_file(
+        if output is None:
+            return jsonify({'error': 'Failed to generate report'}), 500
+            
+        # Send the file with proper headers
+        response = send_file(
             output,
             mimetype=mimetype,
             as_attachment=True,
             download_name=filename
         )
-            
+        
+        # Add headers to prevent caching
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
+        return response
+    
     except Exception as e:
-        flash(f'Error generating report: {str(e)}', 'error')
-        return redirect(url_for('admin_reports'))
+        print(f"Export error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/admin/feedback')
 def admin_feedback():
