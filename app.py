@@ -4,8 +4,8 @@ import io
 import os
 import csv
 import pandas as pd
-from datetime import datetime
 import xlsxwriter
+from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -15,6 +15,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'tonifowlersupersecretkey'
+
+DATABASE_URL = os.environ.get('POSTGRES_URL', 'postgresql://user:password@localhost:5432/rubi_sysarch')
 
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -73,7 +75,7 @@ def admin_dashboard():
     
     # Chart data setup
     months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    purposes = ['C#', 'C', 'ASP.NET', 'Java', 'Php']
+    purposes = ['C#', 'C', 'ASP.NET', 'Java', 'Php','Database', 'Digital Logic & Design', 'Embedded Designs & IOT', 'System Integration & Architecture', 'Computer Application', 'Project Management', 'IT Trends', 'Technopreneurship', 'Capstone']
     chart_data = {purpose: [0] * 12 for purpose in purposes}
     
     for month_num, purpose, count in purpose_data:

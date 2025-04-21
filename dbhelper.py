@@ -1117,11 +1117,20 @@ def get_sit_in_history(limit=50):
 
 def standardize_purpose(purpose):
     purpose_mapping = {
-        'PHP': 'Php',
-        'JAVA': 'Java',
-        'C#': 'C#',
-        'C': 'C',
-        'ASP.NET': 'ASP.NET'
+        'PHP PROGRAMMING': 'Php Programming',
+        'JAVA PROGRAMMING': 'Java Programming',
+        'C# PROGRAMMING': 'C# Programming',
+        'C PROGRAMMING': 'C Programming',
+        'ASP.NET PROGRAMMING': 'ASP.NET Programming',
+        'DATABASE':'Database',
+        'DIGITAL LOGIC & DESIGN':'Digital Logic & Design',
+        'EMBEDDED SYSTEMS & IOT':'Embedded Systems & IOT',
+        'SYSTEM INTGERATION & ARCHITECTURE':'System Integration & Architecture',
+        'COMPUTER APPLICATION':'Computer Application',
+        'PROJECT MANAGEMENT':'Project Management',
+        'IT TRENDS':'IT Trends',
+        'TECHNOPRENEURSHIP':'Technopreneurship',
+        'CAPSTONE':'Capstone',
     }
     return purpose_mapping.get(purpose.upper(), purpose)
 
@@ -1218,6 +1227,16 @@ def get_purpose_statistics():
                         WHEN upper(purpose) = 'C#' THEN 'C#'
                         WHEN upper(purpose) = 'C' THEN 'C'
                         WHEN upper(purpose) = 'ASP.NET' THEN 'ASP.NET'
+                        WHEN upper(purpose) = 'DATABASE' THEN 'Database'
+                        WHEN upper(purpose) = 'DIGITAL LOGIC & DESIGN' THEN 'Digital Logic & Design'
+                        WHEN upper(purpose) = 'EMBEDDED SYSTEMS & IOT' THEN 'Embedded Systems & IOT'
+                        WHEN upper(purpose) = 'SYSTEM INTEGRATION & ARCHITECTURE' THEN 'System Integration & Architecture'
+                        WHEN upper(purpose) = 'COMPUTER APPLICATION' THEN 'Computer Application'
+                        WHEN upper(purpose) = 'PROJECT MANAGEMENT' THEN 'Project Management'
+                        WHEN upper(purpose) = 'IT TRENDS' THEN 'IT Trends'
+                        WHEN upper(purpose) = 'TECHNOPRENEURSHIP' THEN 'Technopreneurship'
+                        WHEN upper(purpose) = 'CAPSTONE' THEN 'Capstone'
+
                         ELSE purpose
                     END as standardized_purpose,
                     COUNT(*) as count
