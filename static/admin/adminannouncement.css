@@ -10,11 +10,6 @@ body {
     background-color: #f5f5f5;
 }
 
-.dashboard-container {
-    display: flex;
-    min-height: 100vh;
-}
-
 /* Sidebar Styles */
 .sidebar {
     width: 250px;
@@ -34,10 +29,34 @@ body {
     transition: all 0.3s ease;
     width: calc(100% - 250px);
     padding: 20px;
+    height: 100vh;
+    overflow-y: auto;
 }
 
-.main-content.expanded {
-    margin-left: -250px;
+.top-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: #f5f5f5;
+    padding: 10px 0;
+    z-index: 100;
+}
+
+.header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.title-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .hamburger-btn {
@@ -45,9 +64,36 @@ body {
     border: none;
     font-size: 24px;
     cursor: pointer;
-    margin-right: 15px;
     color: #333;
 }
+
+.top-bar h1 {
+    color: #603A75;
+    font-size: 24px;
+}
+
+.new-announcement-btn {
+    background: #603A75;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.announcements-card {
+    margin-top: 20px;
+    background: white;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.main-content.expanded {
+    margin-left: -250px;
+}
+
 
 .logo-container {
     text-align: center;
@@ -115,34 +161,47 @@ body {
 /* Sidebar Styles */
 
 /* Main Content Styles */
-.main-content {
-    margin-left: 250px;
-    transition: all 0.3s ease;
-    width: calc(100% - 250px);
-    padding: 20px;
+.top-bar {
     display: flex;
-    flex-direction: column;
     align-items: center;
-}
-
-.main-content.expanded {
-    margin-left: -250px;
+    margin-bottom: 30px;
 }
 
 .header-section {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 20px;
+    gap: 15px;
     width: 100%;
-    max-width: 800px;
-    margin: 20px auto 0;
 }
 
-.main-content h1 {
-    color: #603A75;
-    margin-bottom: 30px;
+.hamburger-btn {
+    background: none;
+    border: none;
     font-size: 24px;
+    cursor: pointer;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.top-bar h1 {
+    color: #603A75;
+    font-size: 24px;
+    margin-left: 5px;
+}
+
+.new-announcement-btn {
+    background: #603A75;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: auto;
+}
+
+.new-announcement-btn:hover {
+    background: #4c2e5d;
 }
 
 .admin-text {
@@ -325,21 +384,6 @@ body {
 .announcement-header h2 {
     color: #333;
     margin: 0;
-}
-
-.new-announcement-btn {
-    background: #603A75;
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: 'Poppins', sans-serif;
-    font-size: 14px;
-}
-
-.new-announcement-btn:hover {
-    background: #4c2e5d;
 }
 
 .announcement-list {
