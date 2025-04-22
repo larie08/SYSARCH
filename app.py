@@ -12,6 +12,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'tonifowlersupersecretkey'
@@ -20,6 +21,7 @@ DATABASE_URL = os.environ.get('POSTGRES_URL', 'postgresql://user:password@localh
 
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+RESOURCE_FOLDER = os.path.join(app.static_folder, 'resources')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  
@@ -481,16 +483,28 @@ def Dashboard():
         
     rejection_message = session.pop('rejection_message', None)
     
-    print(f"Debug - User in session: {session['username']}")
-    print(f"Debug - Student ID: {session['student_id']}")
+    # Get user points and sessions data
+    points_data = get_user_points_and_sessions(session['student_id'])
+    points = points_data['points']  # This will get the actual points value
     
     reservations = get_user_reservations(session['student_id'])
-    print(f"Debug - Found reservations: {reservations}")
     
     return render_template('student/index.html', 
                          username=session['username'],
                          reservations=reservations,
-                         rejection_message=rejection_message)
+                         rejection_message=rejection_message,
+                         points=points)  # Pass the points to the template
+
+@app.route('/get-points')
+def get_points():
+    if 'student_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    points_data = get_user_points_and_sessions(session['student_id'])
+    return jsonify({
+        'success': True,
+        'points': points_data['points']
+    })
 
 @app.route('/Profile', methods=['GET', 'POST'])
 def Profile():
@@ -589,6 +603,112 @@ def Resources():
     
     resources = get_student_resources(session['student_id'])
     return render_template('student/lab.html', resources=resources)
+
+@app.route('/admin/upload-resource', methods=['POST'])
+def upload_resource():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    folder = request.form.get('folder')
+    files = request.files.getlist('files[]')
+    
+    if not folder:
+        return jsonify({'error': 'No folder specified'}), 400
+    
+    folder_path = os.path.join(RESOURCE_FOLDER, folder)
+    os.makedirs(folder_path, exist_ok=True)
+    
+    uploaded_files = []
+    try:
+        for file in files:
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(folder_path, filename)
+                file.save(file_path)
+                uploaded_files.append(filename)
+        
+        return jsonify({
+            'success': True,
+            'files': uploaded_files
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/get-resources/<folder>')
+def get_resources(folder):
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    folder_path = os.path.join(RESOURCE_FOLDER, folder)
+    if not os.path.exists(folder_path):
+        return jsonify([])
+    
+    try:
+        files = []
+        for f in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, f)
+            if os.path.isfile(file_path):
+                files.append({
+                    'name': f,
+                    'size': os.path.getsize(file_path),
+                    'modified': datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
+                })
+        return jsonify(files)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/delete-resource-file', methods=['POST'])
+def delete_resource_file():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json()
+    folder = data.get('folder')
+    filename = data.get('filename')
+    
+    if not folder or not filename:
+        return jsonify({'error': 'Folder and filename are required'}), 400
+    
+    file_path = os.path.join(RESOURCE_FOLDER, folder, filename)
+    
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return jsonify({
+                'success': True,
+                'message': f'File {filename} deleted successfully'
+            })
+        return jsonify({'error': 'File not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/download-resources/<folder>', methods=['GET'])
+def download_resources(folder):
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    folder_path = os.path.join(RESOURCE_FOLDER, folder)
+    if not os.path.exists(folder_path):
+        return jsonify({'error': 'Folder not found'}), 404
+
+    try:
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arc_name = os.path.relpath(file_path, folder_path)
+                    zf.write(file_path, arc_name)
+
+        memory_file.seek(0)
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f'{folder}_resources.zip'
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/Session')
 def Session():

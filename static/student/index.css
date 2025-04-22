@@ -15,6 +15,12 @@ body {
     min-height: 100vh;
 }
 
+.main-sections {
+    display: flex;
+    gap: 30px;
+    margin-top: 20px;
+}
+
 .notification {
     position: fixed;
     top: 20px;
@@ -234,7 +240,7 @@ body {
 
 .header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
 .header h2 {
@@ -280,15 +286,7 @@ body {
 .content-columns {
     display: flex;
     gap: 30px;
-    margin-top: 20px;
-}
-
-.schedule-section {
-    flex: 1;
-    background: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-top: 10px;
 }
 
 .rules-section {
@@ -297,13 +295,6 @@ body {
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.lab-schedules {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    margin-top: 20px;
 }
 
 .lab-block {
@@ -348,6 +339,72 @@ h4 {
 h5 {
     color: #603A75;
     margin-bottom: 10px;
+}
+
+
+.schedule-section {
+    flex: 1;
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.lab-schedules {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.content-sections {
+    display: flex;
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.points-card {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 0 auto 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 500px;
+    height: 130px;
+    display: flex;
+    align-items: center;
+}
+
+.points-info {
+    width: 100%;
+    text-align: center;
+}
+
+.points-info h4 {
+    color: #333;
+    margin-bottom: 5px;
+    font-size: 1em;
+}
+
+.points-display {
+    margin: 5px 0;
+}
+
+.points-number {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #4CAF50;
+}
+
+.points-text {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.points-description {
+    color: #666;
+    font-size: 0.75em;
+    margin-top: 5px;
 }
 
 @media (max-width: 1024px) {

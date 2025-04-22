@@ -40,15 +40,18 @@
             </div>
 
             <div class="resources-container">
-                <div class="resource-grid">
+                <!-- Search Bar -->
+                <div class="search-bar">
+                    <input type="text" placeholder="Search resources...">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+
+                <!-- Resources Grid -->
+                <div class="resources-grid">
                     {% for resource in resources %}
-                    <div class="resource-row">
-                        <div class="resource-item">
-                            <div class="resource-content">
-                                <i class="fas fa-folder fa-3x"></i>
-                                <span class="resource-label">{{ resource.name }}</span>
-                            </div>
-                        </div>
+                    <div class="resource-folder">
+                        <i class="fas fa-folder folder-icon"></i>
+                        <span>{{ resource.name }}</span>
                     </div>
                     {% endfor %}
                 </div>

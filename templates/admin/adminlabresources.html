@@ -35,65 +35,61 @@
         <div class="main-content">
             <div class="top-bar">
                 <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
-                <h1>Laboratory Resources</h1>
-                <button class="add-resources-btn">Add Resources</button>
+                <h1>Resources</h1>
             </div>
 
             <div class="resources-container">
-                <div class="resource-grid">
-                    <div class="resource-row">
-                        <div class="resource-item">
-                            <div class="resource-content">
-                                <i class="fas fa-folder fa-3x"></i>
-                                <span class="resource-label">C</span>
-                            </div>
-                            <div class="resource-actions">
-                                <button class="activate-btn">Activate</button>
-                                <button class="disable-btn">Disable</button>
-                            </div>
+                <!-- Search Bar -->
+                <div class="search-bar">
+                    <input type="text" placeholder="Search" id="resource-search">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+
+                <!-- Resources Grid -->
+                <div class="resources-grid">
+                    <!-- Resources will be dynamically added here -->
+                </div>
+
+                <!-- Add Resource Button -->
+                <button class="add-resource-btn">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <!-- Upload Modal -->
+            <div class="upload-modal" id="uploadModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Upload Resources</h2>
+                        <button class="close-modal">&times;</button>
+                    </div>
+                    <div class="upload-options">
+                        <div class="upload-option">
+                            <i class="fas fa-folder-plus"></i>
+                            <span>Create New Folder</span>
                         </div>
-                        <div class="resource-item">
-                            <div class="resource-content">
-                                <i class="fas fa-folder fa-3x"></i>
-                                <span class="resource-label">C#</span>
-                            </div>
-                            <div class="resource-actions">
-                                <button class="activate-btn">Activate</button>
-                                <button class="disable-btn">Disable</button>
-                            </div>
-                        </div>
-                        <div class="resource-item">
-                            <div class="resource-content">
-                                <i class="fas fa-folder fa-3x"></i>
-                                <span class="resource-label">Java</span>
-                            </div>
-                            <div class="resource-actions">
-                                <button class="activate-btn">Activate</button>
-                                <button class="disable-btn">Disable</button>
-                            </div>
+                        <div class="upload-option">
+                            <i class="fas fa-file-upload"></i>
+                            <span>Upload File</span>
                         </div>
                     </div>
-                    <div class="resource-row">
-                        <div class="resource-item">
-                            <div class="resource-content">
-                                <i class="fas fa-folder fa-3x"></i>
-                                <span class="resource-label">ASP.NET</span>
-                            </div>
-                            <div class="resource-actions">
-                                <button class="activate-btn">Activate</button>
-                                <button class="disable-btn">Disable</button>
-                            </div>
+                </div>
+            </div>
+
+            <!-- Resource Files Modal -->
+            <div class="resource-files-modal" id="resourceFilesModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="resourceFolderName">Folder Name</h2>
+                        <div class="modal-actions">
+                            <button class="add-file-btn"><i class="fas fa-plus"></i></button>
+                            <button class="download-btn"><i class="fas fa-download"></i></button>
+                            <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                            <button class="close-modal">&times;</button>
                         </div>
-                        <div class="resource-item">
-                            <div class="resource-content">
-                                <i class="fas fa-folder fa-3x"></i>
-                                <span class="resource-label">Php</span>
-                            </div>
-                            <div class="resource-actions">
-                                <button class="activate-btn">Activate</button>
-                                <button class="disable-btn">Disable</button>
-                            </div>
-                        </div>
+                    </div>
+                    <div class="files-grid" id="filesGrid">
+                        <!-- Files will be dynamically added here -->
                     </div>
                 </div>
             </div>
@@ -120,7 +116,171 @@
     }
         sidebarToggle.addEventListener('click', toggleSidebar);
 
-        /*SIDEBAR*/
+    /*SIDEBAR*/
+
+    // Add file button functionality
+    document.querySelector('.add-file-btn').addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = true;
+        input.onchange = async (e) => {
+            const folderName = document.getElementById('resourceFolderName').textContent;
+            const files = e.target.files;
+            const formData = new FormData();
+            
+            for (let file of files) {
+                formData.append('files[]', file);
+            }
+            formData.append('folder', folderName);
+
+            try {
+                const response = await fetch('/admin/upload-resource', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    loadFolderFiles(folderName);
+                    alert('Files uploaded successfully!');
+                } else {
+                    alert('Upload failed: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Upload failed!');
+            }
+        };
+        input.click();
+    });
+
+    // Download button functionality
+    document.querySelector('.download-btn').addEventListener('click', async () => {
+        const folderName = document.getElementById('resourceFolderName').textContent;
+        try {
+            const response = await fetch(`/admin/download-resources/${folderName}`);
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${folderName}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } else {
+                alert('Download failed');
+            }
+        } catch (error) {
+            console.error('Download error:', error);
+            alert('Download failed!');
+        }
+    });
+
+    // Delete button functionality
+    document.querySelector('.delete-btn').addEventListener('click', async () => {
+        const folderName = document.getElementById('resourceFolderName').textContent;
+        if (!confirm(`Are you sure you want to delete all files in ${folderName}?`)) return;
+        
+        try {
+            const response = await fetch('/admin/delete-resource-folder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ folder: folderName })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                resourceFilesModal.style.display = 'none';
+                loadResources(); // Refresh the resources grid
+                alert('Folder deleted successfully!');
+            } else {
+                alert('Delete failed: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('Delete failed!');
+        }
+    });
+
+        // Show/Hide Upload Modal
+            const addResourceBtn = document.querySelector('.add-resource-btn');
+            const uploadModal = document.getElementById('uploadModal');
+            const resourceFilesModal = document.getElementById('resourceFilesModal');
+            const closeButtons = document.querySelectorAll('.close-modal');
+
+            addResourceBtn.addEventListener('click', () => {
+                uploadModal.style.display = 'block';
+            });
+
+            closeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    uploadModal.style.display = 'none';
+                    resourceFilesModal.style.display = 'none';
+                });
+            });
+
+            // Load Resources
+            function loadResources() {
+                const resourcesGrid = document.querySelector('.resources-grid');
+                const folders = [
+                    'C Programming', 'Java Programming', 'Python Programming',
+                    'C# Programming', 'Database', 'Digital Logic & Design',
+                    'Embedded Systems & IoT', 'System Integration & Archi', 'Computer Application',
+                    'Project Management', 'IT Trends', 'Technopreneurship',
+                    'Capstone'
+                ];
+
+                resourcesGrid.innerHTML = folders.map(folder => `
+                    <div class="resource-folder" onclick="openResourceFolder('${folder}')">
+                        <i class="fas fa-folder folder-icon"></i>
+                        <span>${folder}</span>
+                    </div>
+                `).join('');
+            }
+
+            // Open Resource Folder
+            function openResourceFolder(folderName) {
+                const resourceFilesModal = document.getElementById('resourceFilesModal');
+                document.getElementById('resourceFolderName').textContent = folderName;
+                resourceFilesModal.style.display = 'block';
+                loadFolderFiles(folderName);
+            }
+
+            // Load Folder Files
+            async function loadFolderFiles(folderName) {
+                try {
+                    const response = await fetch(`/admin/get-resources/${folderName}`);
+                    const files = await response.json();
+                    
+                    const filesGrid = document.getElementById('filesGrid');
+                    filesGrid.innerHTML = files.map(file => `
+                        <div class="file-item">
+                            <i class="fas fa-file fa-2x"></i>
+                            <p>${file.name}</p>
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error('Error loading files:', error);
+                }
+            }
+
+            // Initialize
+            document.addEventListener('DOMContentLoaded', loadResources);
+
+    // Initial load of file lists
+    document.addEventListener('DOMContentLoaded', () => {
+        [
+            'csharp', 'java', 'php', 'aspnet', 'database',
+            'digital', 'embedded', 'sysarch', 'compapp', 'projman',
+            'ittrends', 'techno', 'capstone'
+        ].forEach(folder => {
+            updateFileList(folder);
+        });
+    });
     </script>
 </body>
 </html>

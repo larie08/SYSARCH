@@ -29,6 +29,7 @@ def create_tables():
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
                 sessions TEXT DEFAULT NULL,
+                points INTEGER DEFAULT 0,
                 address TEXT,
                 photo TEXT
            )
@@ -307,6 +308,77 @@ def get_all_users():
             }
             for row in cursor.fetchall()
         ]
+
+def get_user_points_and_sessions(student_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT points, sessions
+                FROM users
+                WHERE idno = ?
+            """, (student_id,))
+            result = cursor.fetchone()
+            
+            # Ensure we're getting the actual points value, not None
+            points = result[0] if result and result[0] is not None else 0
+            sessions = result[1] if result and result[1] is not None else 0
+            
+            return {
+                'points': int(points),  # Convert to integer to ensure consistent type
+                'sessions': int(sessions)
+            }
+    except Exception as e:
+        print(f"Error getting user points and sessions: {e}")
+        return {'points': 0, 'sessions': 0}
+
+def update_user_points(student_id, points):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE users 
+                SET points = ?
+                WHERE idno = ?
+            """, (points, student_id))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error updating user points: {e}")
+        return False
+
+def increment_user_points(student_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            # Get current points
+            cursor.execute("SELECT points FROM users WHERE idno = ?", (student_id,))
+            result = cursor.fetchone()
+            current_points = result[0] if result and result[0] is not None else 0
+            
+            new_points = current_points + 1
+            
+            # If points reach 3, add a session and reset points
+            if new_points >= 3:
+                cursor.execute("""
+                    UPDATE users 
+                    SET points = 0,
+                        sessions = COALESCE(sessions, 0) + 1
+                    WHERE idno = ?
+                """, (student_id,))
+                return True, "Points converted to an extra session!"
+            else:
+                # Just update points
+                cursor.execute("""
+                    UPDATE users 
+                    SET points = ?
+                    WHERE idno = ?
+                """, (new_points, student_id))
+                return True, f"Point added! Current points: {new_points}/3"
+            
+    except Exception as e:
+        print(f"Error incrementing user points: {e}")
+        return False, str(e)
 #student user end
 
 # student announcement start

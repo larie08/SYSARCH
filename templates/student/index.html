@@ -40,10 +40,23 @@
                 <div class="header">
                     <h2 class="section-header">University of Cebu</h2>
                     <h3 class="section-header">College of Information and Computer Studies</h3><br>
-                    <div class="content-columns">
-                        <div class="schedule-section">
-                            <h4>Laboratory Schedules</h4>
-                            <div class="lab-schedules">
+                </div>
+
+                <div class="content-sections">
+                    <div class="schedule-section">
+                        <div class="points-card">
+                            <div class="points-info">
+                                <h4>Your Points</h4>
+                                <div class="points-display" id="pointsDisplay">
+                                    <span class="points-number" id="currentPoints">{{ points|default(0) }}</span>
+                                    <span class="points-text">/3 points</span>
+                                </div>
+                                <p class="points-description">Earn 3 points to get an extra session!</p>
+                            </div>
+                        </div>
+
+                        <h4>Laboratory Schedules</h4>
+                        <div class="lab-schedules">
                                 <div class="lab-block">
                                     <h5>Lab. 526</h5>
                                     <table class="schedule-table">
@@ -195,6 +208,26 @@
         }
     
         sidebarToggle.addEventListener('click', toggleSidebar);
+    
+        // Points update using Server-Sent Events
+        const eventSource = new EventSource('/points-stream');
+        
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            document.getElementById('currentPoints').textContent = data.points;
+            
+            // Add animation for points update
+            const pointsDisplay = document.getElementById('pointsDisplay');
+            pointsDisplay.classList.add('points-updated');
+            setTimeout(() => {
+                pointsDisplay.classList.remove('points-updated');
+            }, 1000);
+        };
+
+        eventSource.onerror = function(error) {
+            console.error('Error:', error);
+            eventSource.close();
+        };
     </script>
 </body>
 </html>
