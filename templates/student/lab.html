@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sit-in Records - Admin</title>
+    <title>Resources </title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='student/studlabresources.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
@@ -15,7 +15,6 @@
         <nav class="sidebar" id="sidebar">
             <div class="logo-container">
                 <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo"><br>
-                <span class="admin-text">CCS Admin</span>
             </div>
             <ul class="nav-links">
                 <li><a href="{{ url_for('Dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
@@ -38,7 +37,6 @@
                     <h1>Laboratory Resources</h1>
                 </div>
             </div>
-
             <div class="resources-container">
                 <!-- Search Bar -->
                 <div class="search-bar">
@@ -49,14 +47,30 @@
                 <!-- Resources Grid -->
                 <div class="resources-grid">
                     {% for resource in resources %}
-                    <div class="resource-folder">
+                    <div class="resource-folder" onclick="openResourceModal('{{ resource.name }}')">
                         <i class="fas fa-folder folder-icon"></i>
                         <span>{{ resource.name }}</span>
                     </div>
                     {% endfor %}
                 </div>
             </div>
+
+            <!-- Resource Preview Modal -->
+            <div id="resourceModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="closeResourceModal()">&times;</span>
+                    <h2 id="modalTitle">Resource Preview</h2>
+                    <div id="resourcePreview"></div>
+                    <div class="modal-actions">
+                        <button onclick="downloadResource()" class="download-btn">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
+   
     <script>
         /*SIDEBAR*/
         const sidebar = document.getElementById('sidebar');
@@ -78,7 +92,64 @@
     }
         sidebarToggle.addEventListener('click', toggleSidebar);
 
-        /*SIDEBAR*/
+    /*SIDEBAR*/
+
+    /* Resource Modal Functions */
+    let currentResource = null;
+        
+        function openResourceModal(resourceName) {
+            currentResource = resourceName;
+            document.getElementById('modalTitle').textContent = resourceName;
+            document.getElementById('resourceModal').style.display = 'block';
+            
+            // Fetch and display resource preview
+            fetch(`/preview-resource/${encodeURIComponent(resourceName)}`)
+                .then(response => response.json())
+                .then(files => {
+                    const previewDiv = document.getElementById('resourcePreview');
+                    previewDiv.innerHTML = '';
+                    
+                    files.forEach(file => {
+                        const fileElement = document.createElement('div');
+                        fileElement.className = 'resource-file';
+                        fileElement.innerHTML = `
+                            <i class="fas fa-file"></i>
+                            <span>${file.name}</span>
+                            <span class="file-size">${formatFileSize(file.size)}</span>
+                        `;
+                        previewDiv.appendChild(fileElement);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading resource:', error);
+                });
+        }
+
+        function closeResourceModal() {
+            document.getElementById('resourceModal').style.display = 'none';
+        }
+
+        function downloadResource() {
+            if (currentResource) {
+                window.location.href = `/download-resources/${encodeURIComponent(currentResource)}`;
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('resourceModal');
+            if (event.target === modal) {
+                closeResourceModal();
+            }
+        }
     </script>
 </body>
 </html>

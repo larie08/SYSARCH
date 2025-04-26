@@ -82,6 +82,83 @@ body {
     padding-right: 30px;
 }
 
+.computer-list {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.computer-item {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.computer-item.selected {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.computer-item.used {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.computer-item.maintenance {
+    background-color: #fff3e0;
+    cursor: not-allowed;
+    border-color: #ff9800;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-available { background-color: #4CAF50; }
+.status-used { background-color: #9e9e9e; }
+.status-maintenance { background-color: #ff9800; }
+
+.status-legend {
+    margin-top: 15px;
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.filter-buttons {
+    margin: 15px 0;
+    display: flex;
+    gap: 10px;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.filter-btn.active {
+    background: #2196f3;
+    color: white;
+    border-color: #2196f3;
+}
+
+.computer-item.hidden {
+    display: none;
+}
+
 .reserve-btn {
     background-color: #603A75;
     color: white;

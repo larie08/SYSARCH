@@ -39,7 +39,7 @@
                         <p>Remaining Sessions: {{ user['sessions'] if user['sessions'] is not none else 30 }}/30</p>
                     </div>
 
-                    <form class="reservation-form" method="POST" action="{{ url_for('Reservation') }}">
+                    <form class="reservation-form" method="POST">
                         <div class="form-group-row">
                             <div class="form-group">
                                 <label for="student_id">Student ID:</label>
@@ -47,7 +47,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="lab">Laboratory:</label>
-                                <select id="lab" name="lab" required>
+                                <select id="lab" name="lab" required onchange="showComputers(this.value)">
                                     <option value="">Select Laboratories</option>
                                     <option value="Lab 517">Lab 517</option>
                                     <option value="Lab 524">Lab 524</option>
@@ -57,6 +57,37 @@
                                     <option value="Lab 542">Lab 542</option>
                                     <option value="Lab 544">Lab 544</option>
                                 </select>
+                            
+                                <!-- Add after the computer-selection label and before the computer-list div -->
+                                <div id="computerSelection" class="computer-selection" style="display: none;">
+                                    <label for="computer">Computer Unit:</label>
+                                    <input type="hidden" id="computer" name="computer" required>
+                                    <div class="filter-buttons">
+                                        <button type="button" class="filter-btn active" data-filter="all">All</button>
+                                        <button type="button" class="filter-btn" data-filter="available">Available</button>
+                                        <button type="button" class="filter-btn" data-filter="used">In Use</button>
+                                        <button type="button" class="filter-btn" data-filter="maintenance">Maintenance</button>
+                                    </div>
+                                    <div class="computer-list">
+                                        {% for i in range(1, 51) %}
+                                        <div class="computer-item" data-pc="{{ i }}" onclick="selectComputer(this)">
+                                            <span class="status-dot status-available"></span>
+                                            <span>PC {{ i }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="status-legend">
+                                        <div class="legend-item">
+                                            <span class="status-dot status-available"></span> Available
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="status-dot status-used"></span> In Use
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="status-dot status-maintenance"></span> Maintenance
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -122,17 +153,18 @@
     
         sidebarToggle.addEventListener('click', toggleSidebar);
 
-        // Single form submission handler
         document.querySelector('.reservation-form').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const remainingSessions = parseInt(document.getElementById('remaining_sessions').value);
+            const student_id = document.getElementById('student_id').value;
             const lab = document.getElementById('lab').value;
+            const computer = document.getElementById('computer').value;
             const time = document.getElementById('time_in').value;
             const purpose = document.getElementById('purpose').value;
             
-            if (!lab || !time || !purpose) {
-                alert('Please fill in all required fields');
+            if (!lab || !time || !purpose || !computer) {
+                alert('Please fill in all required fields and select a computer');
                 return;
             }
             
@@ -142,10 +174,137 @@
             }
             
             if (confirm('Are you sure you want to submit this reservation?')) {
-                alert('Reservation successfully submitted, please wait for the admin\'s confirmation');
-                this.submit();
+                fetch('/submit_reservation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: student_id,
+                        lab: lab,
+                        computer: computer,
+                        time_in: time,
+                        purpose: purpose
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Reservation submitted successfully!');
+                        window.location.href = '/Dashboard';  // Redirect after success
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while submitting the reservation');
+                });
             }
         });
+
+
+        function showComputers(lab) {
+        const computerSelection = document.getElementById('computerSelection');
+        
+        if (!lab) {
+            computerSelection.style.display = 'none';
+            return;
+        }
+
+        computerSelection.style.display = 'block';
+
+        // Fetch computers status for the selected lab
+        fetch(`/get-computers/${lab}`)
+            .then(response => response.json())
+            .then(computers => {
+                computers.forEach(pc => {
+                    const computerElement = document.querySelector(`.computer-item[data-pc="${pc.id}"]`);
+                    if (computerElement) {
+                        // Remove all existing status classes
+                        computerElement.classList.remove('used', 'maintenance');
+                        const statusDot = computerElement.querySelector('.status-dot');
+                        statusDot.classList.remove('status-available', 'status-used', 'status-maintenance');
+
+                        // Add appropriate status
+                        if (pc.status === 'used') {
+                            computerElement.classList.add('used');
+                            statusDot.classList.add('status-used');
+                            computerElement.onclick = null;
+                        } else if (pc.status === 'maintenance') {
+                            computerElement.classList.add('maintenance');
+                            statusDot.classList.add('status-maintenance');
+                            computerElement.onclick = null;
+                        } else {
+                            statusDot.classList.add('status-available');
+                            computerElement.onclick = function() { selectComputer(this); };
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching computers:', error);
+            });
+    }
+
+    function selectComputer(element) {
+        if (element.classList.contains('used') || element.classList.contains('maintenance')) {
+            return;
+        }
+
+        // Remove selection from all computers
+        document.querySelectorAll('.computer-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+
+        // Select this computer
+        element.classList.add('selected');
+        document.getElementById('computer').value = element.dataset.pc;
+    }
+
+    // Add this new function
+    function filterComputers(filter) {
+        const computers = document.querySelectorAll('.computer-item');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+
+        // Update active button
+        filterButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.filter === filter) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Show/hide computers based on filter
+        computers.forEach(computer => {
+            computer.classList.remove('hidden');
+            
+            if (filter === 'all') return;
+            
+            if (filter === 'available' && 
+                !computer.classList.contains('used') && 
+                !computer.classList.contains('maintenance')) {
+                return;
+            }
+            
+            if (filter === 'used' && computer.classList.contains('used')) {
+                return;
+            }
+            
+            if (filter === 'maintenance' && computer.classList.contains('maintenance')) {
+                return;
+            }
+            
+            computer.classList.add('hidden');
+        });
+    }
+
+    // Add event listeners for filter buttons
+    document.querySelectorAll('.filter-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            filterComputers(button.dataset.filter);
+        });
+    });
     </script>
 </body>
 </html>

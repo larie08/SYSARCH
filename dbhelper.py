@@ -36,14 +36,26 @@ def create_tables():
         """)
 
         cursor.execute("""
+            CREATE TABLE IF NOT EXISTS lab_computers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lab TEXT NOT NULL,
+                computer_number INTEGER NOT NULL,
+                status TEXT DEFAULT 'active',
+                UNIQUE(lab, computer_number)
+            )
+        """)
+
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS reservations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 idno TEXT NOT NULL,
                 purpose TEXT NOT NULL,
-                lab TEXT NOT NULL,
+                laboratory TEXT NOT NULL, 
+                computer_number INTEGER NOT NULL,
                 time_in DATETIME NOT NULL,
                 time_out DATETIME,
                 status TEXT DEFAULT 'Pending',
+                requested_time DATETIME,
                 FOREIGN KEY (idno) REFERENCES users(IDNO)
             )
         """)
@@ -68,6 +80,31 @@ def create_tables():
             pass
             
         conn.commit()
+
+# def initialize_database():
+#     with sqlite3.connect("users.db") as conn:
+#         cursor = conn.cursor()
+        
+#         # Add remaining_sessions column if it doesn't exist
+#         cursor.execute("""
+#             ALTER TABLE users ADD COLUMN remaining_sessions INTEGER DEFAULT 0;
+#         """)
+        
+#         # Update existing users with default session values based on their course
+#         cursor.execute("""
+#             UPDATE users 
+#             SET remaining_sessions = CASE 
+#                 WHEN course LIKE '%BSIT%' THEN 30
+#                 WHEN course LIKE '%BSCS%' THEN 30
+#                 ELSE 20
+#             END
+#             WHERE remaining_sessions IS NULL;
+#         """)
+        
+#         conn.commit()
+
+# # Call this function to update the database schema
+# initialize_database()
 
 # for both student and admin
 def add_user(user_data):
@@ -436,7 +473,87 @@ def check_resource_access(student_id, resource_name):
     except Exception as e:
         print(f"Error checking resource access: {e}")
         return False
+
+def get_file_info(file_path):
+    """Get file information including size and last modified date"""
+    try:
+        stats = os.stat(file_path)
+        return {
+            'size': stats.st_size,
+            'modified': datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+            'exists': True
+        }
+    except:
+        return {
+            'size': 0,
+            'modified': None,
+            'exists': False
+        }
 # student laboratory resources end
+
+# student reservation start
+def get_lab_computers(lab):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # Get computers that are currently in use
+            cursor.execute("""
+                SELECT computer_number 
+                FROM reservations 
+                WHERE lab = ? AND status = 'Active'
+            """, (lab,))
+            used_computers = [row[0] for row in cursor.fetchall()]
+            
+            # Get computers under maintenance
+            cursor.execute("""
+                SELECT computer_number 
+                FROM lab_computers 
+                WHERE lab = ? AND status = 'maintenance'
+            """, (lab,))
+            maintenance_computers = [row[0] for row in cursor.fetchall()]
+            
+            computers = []
+            for i in range(1, 51):
+                status = 'active'  # default status
+                if i in used_computers:
+                    status = 'used'
+                elif i in maintenance_computers:
+                    status = 'maintenance'
+                    
+                computers.append({
+                    'id': i,
+                    'status': status
+                })
+                
+            return computers
+    except Exception as e:
+        print(f"Error getting lab computers: {e}")
+        return []
+
+def get_active_lab_computers(lab):
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT computer_number 
+            FROM reservations 
+            WHERE laboratory = ? 
+            AND status = 'active'
+        """, (lab,))
+        return [row[0] for row in cursor.fetchall()]
+
+def get_maintenance_computers(lab):
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT computer_number 
+            FROM lab_computers 
+            WHERE laboratory = ? 
+            AND status = 'maintenance'
+        """, (lab,))
+        return [row[0] for row in cursor.fetchall()]
+
+# student reservation end
 
 # student session start
 def initialize_user_sessions(student_idno):
@@ -583,26 +700,69 @@ def get_all_reservations():
         print(f"Error fetching reservations: {e}")
         return []
 
-def create_reservation(student_id, purpose, laboratory):
+def create_reservation(student_id, lab, computer, time_in, purpose):
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             
+            # Insert the reservation with Pending status
             cursor.execute("""
-                INSERT INTO reservations (idno, purpose, lab, requested_time, status)
-                VALUES (?, ?, ?, datetime('now', 'localtime'), 'Pending')
-            """, (student_id, purpose, laboratory))
+                INSERT INTO reservations (
+                    idno, lab, computer_number, time_in, 
+                    purpose, status, requested_time
+                ) VALUES (?, ?, ?, ?, ?, 'Pending', datetime('now', 'localtime'))
+            """, (student_id, lab, computer, time_in, purpose))
             
             new_id = cursor.lastrowid
             conn.commit()
             
-            cursor.execute("SELECT * FROM reservations WHERE id = ?", (new_id,))
+            # Get the newly created reservation
+            cursor.execute("""
+                SELECT r.*, u.firstname, u.lastname 
+                FROM reservations r
+                JOIN users u ON r.idno = u.idno 
+                WHERE r.id = ?
+            """, (new_id,))
             new_reservation = cursor.fetchone()
             
             return True, new_id, new_reservation
             
     except Exception as e:
+        print(f"Error creating reservation: {e}")
         return False, None, str(e)
+
+def get_pending_reservations():
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT r.id, r.idno, u.firstname, u.lastname, u.course, 
+                       r.purpose, r.lab, r.computer_number, r.time_in,
+                       u.sessions, u.photo
+                FROM reservations r
+                JOIN users u ON r.idno = u.idno
+                WHERE r.status = 'Pending'
+                ORDER BY r.time_in ASC
+            """)
+            
+            reservations = []
+            for row in cursor.fetchall():
+                reservations.append({
+                    'id': row[0],
+                    'idno': row[1],
+                    'name': f"{row[2]} {row[3]}",
+                    'course': row[4],
+                    'purpose': row[5],
+                    'lab': row[6],
+                    'computer': row[7],
+                    'time_in': row[8],
+                    'sessions': row[9],
+                    'photo': row[10] if row[10] else 'default.png'
+                })
+            return reservations
+    except Exception as e:
+        print(f"Error fetching pending reservations: {e}")
+        return []
 
 def delete_user_record(record_id, student_id):
     try:
@@ -975,7 +1135,7 @@ def search_student_by_id(student_id):
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT idno, firstname, middlename, lastname, course, year_level, 
-                       COALESCE(sessions, 0) as sessions 
+                       COALESCE(sessions, 0) as remaining_sessions 
                 FROM users 
                 WHERE idno = ?
             """, (student_id,))
@@ -983,17 +1143,16 @@ def search_student_by_id(student_id):
             
             if student:
                 full_name = f"{student[1]} {student[2] if student[2] else ''} {student[3]}".strip()
-                sessions_remaining = int(student[6] or 0)
                 
                 return {
                     'id': student[0],
                     'name': full_name,
                     'course': student[4],
                     'year_level': student[5],
-                    'remainingSession': sessions_remaining,
+                    'remaining_sessions': int(student[6]),  # Consistent field name
                     'message': ("Student has reached maximum session limit" 
-                              if sessions_remaining <= 0 
-                              else f"Student has {sessions_remaining} sessions remaining")
+                              if int(student[6]) <= 0 
+                              else f"Student has {int(student[6])} sessions remaining")
                 }
             return None
             
@@ -1206,62 +1365,44 @@ def standardize_purpose(purpose):
     }
     return purpose_mapping.get(purpose.upper(), purpose)
 
-def create_sit_in_session(student_id, purpose, laboratory):
+def create_sit_in_session(student_id, purpose, laboratory, computer):
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             
-            # Check student and get sessions
-            cursor.execute("""
-                SELECT COALESCE(sessions, 0) as sessions, course 
-                FROM users WHERE idno = ?
-            """, (student_id,))
+            # Check remaining sessions (convert to int)
+            cursor.execute("SELECT remaining_sessions FROM users WHERE idno = ?", (student_id,))
             result = cursor.fetchone()
             
             if not result:
-                return False, 'Student not found'
+                return False, "Student not found"
                 
-            current_sessions = int(result[0] or 0)
-            course = result[1]
+            remaining = int(float(result[0])) if result[0] is not None else 0
+            if remaining <= 0:
+                return False, "No remaining sessions"
             
-            # Set total sessions based on course
-            total_sessions = 30 if course in [
-                'Bachelor of Science in Information Technology',
-                'Bachelor of Science in Computer Science'
-            ] else 15
-            
-            # Initialize sessions if needed
-            if current_sessions == 0:
-                current_sessions = total_sessions
-                cursor.execute("UPDATE users SET sessions = ? WHERE idno = ?", 
-                             (total_sessions, student_id))
-            
-            if current_sessions <= 0:
-                return False, 'No remaining sessions available'
-            
-            # Check active sessions
+            # Create sit-in session - using correct column names from schema
             cursor.execute("""
-                SELECT COUNT(*) FROM reservations 
-                WHERE idno = ? AND status = 'Active'
+                INSERT INTO reservations (idno, purpose, lab, computer_number, time_in, status)
+                VALUES (?, ?, ?, ?, datetime('now'), 'Active')
+            """, (student_id, purpose, laboratory, computer))
+            
+            # Update remaining sessions (ensure integer operation)
+            cursor.execute("""
+                UPDATE users 
+                SET remaining_sessions = CAST(remaining_sessions AS INTEGER) - 1 
+                WHERE idno = ?
             """, (student_id,))
-            if cursor.fetchone()[0] > 0:
-                return False, 'Student already has an active sit-in session'
             
-            # Create sit-in record
-            cursor.execute("""
-                INSERT INTO reservations (idno, purpose, lab, time_in, status)
-                VALUES (?, ?, ?, datetime('now', 'localtime'), 'Active')
-            """, (student_id, purpose, laboratory))
-            
-            # Update remaining sessions
-            cursor.execute("UPDATE users SET sessions = sessions - 1 WHERE idno = ?", 
-                         (student_id,))
+            # Get updated session count (as integer)
+            cursor.execute("SELECT CAST(remaining_sessions AS INTEGER) FROM users WHERE idno = ?", (student_id,))
+            updated_sessions = cursor.fetchone()[0]
             
             conn.commit()
-            return True, current_sessions - 1
+            return True, updated_sessions
             
     except Exception as e:
-        print(f"Error in create_sit_in_session: {e}")
+        print(f"Error creating sit-in session: {e}")
         return False, str(e)
 
 def get_completed_sitins():

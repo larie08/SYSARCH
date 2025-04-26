@@ -178,34 +178,6 @@
         }
     });
 
-    // Delete button functionality
-    document.querySelector('.delete-btn').addEventListener('click', async () => {
-        const folderName = document.getElementById('resourceFolderName').textContent;
-        if (!confirm(`Are you sure you want to delete all files in ${folderName}?`)) return;
-        
-        try {
-            const response = await fetch('/admin/delete-resource-folder', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ folder: folderName })
-            });
-            
-            const result = await response.json();
-            if (result.success) {
-                resourceFilesModal.style.display = 'none';
-                loadResources(); // Refresh the resources grid
-                alert('Folder deleted successfully!');
-            } else {
-                alert('Delete failed: ' + result.error);
-            }
-        } catch (error) {
-            console.error('Delete error:', error);
-            alert('Delete failed!');
-        }
-    });
-
         // Show/Hide Upload Modal
             const addResourceBtn = document.querySelector('.add-resource-btn');
             const uploadModal = document.getElementById('uploadModal');
@@ -258,7 +230,7 @@
                     
                     const filesGrid = document.getElementById('filesGrid');
                     filesGrid.innerHTML = files.map(file => `
-                        <div class="file-item">
+                        <div class="file-item" data-filename="${file.name}" onclick="handleFileClick(this, '${folderName}', '${file.name}')">
                             <i class="fas fa-file fa-2x"></i>
                             <p>${file.name}</p>
                         </div>
@@ -281,6 +253,122 @@
             updateFileList(folder);
         });
     });
+
+    let selectedFiles = new Set();
+
+function toggleFileSelection(fileElement, fileName) {
+    fileElement.classList.toggle('selected');
+    if (selectedFiles.has(fileName)) {
+        selectedFiles.delete(fileName);
+    } else {
+        selectedFiles.add(fileName);
+    }
+    updateDeleteButtonState();
+}
+
+function updateDeleteButtonState() {
+    const deleteBtn = document.querySelector('.delete-btn');
+    deleteBtn.disabled = selectedFiles.size === 0;
+    deleteBtn.style.opacity = selectedFiles.size === 0 ? '0.6' : '1';
+}
+
+function previewFile(folder, fileName) {
+    const modal = document.getElementById('filePreviewModal');
+    const previewContent = document.getElementById('filePreviewContent');
+    const fileNameElement = document.getElementById('previewFileName');
+    
+    fileNameElement.textContent = fileName;
+    
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    const filePath = `/static/resources/${folder}/${fileName}`;
+    
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
+        previewContent.innerHTML = `<img src="${filePath}" style="max-width: 100%; height: auto;">`;
+    } else if (['pdf'].includes(fileExtension)) {
+        previewContent.innerHTML = `<embed src="${filePath}" type="application/pdf" width="100%" height="600px">`;
+    } else if (['txt', 'csv'].includes(fileExtension)) {
+        fetch(filePath)
+            .then(response => response.text())
+            .then(text => {
+                previewContent.innerHTML = `<pre>${text}</pre>`;
+            });
+    } else {
+        previewContent.innerHTML = `<p>Preview not available for this file type. <a href="${filePath}" target="_blank">Download</a> to view.</p>`;
+    }
+    
+    modal.style.display = 'block';
+}
+
+// Delete selected files
+async function deleteSelectedFiles(folder) {
+    if (selectedFiles.size === 0) return;
+    
+    if (!confirm('Are you sure you want to delete the selected files?')) return;
+    
+    for (const fileName of selectedFiles) {
+        try {
+            const response = await fetch('/admin/delete-resource-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    folder: folder,
+                    filename: fileName
+                })
+            });
+            
+            if (response.ok) {
+                const fileElement = document.querySelector(`[data-filename="${fileName}"]`);
+                if (fileElement) fileElement.remove();
+            }
+        } catch (error) {
+            console.error('Error deleting file:', error);
+        }
+    }
+    
+    selectedFiles.clear();
+    updateDeleteButtonState();
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('filePreviewModal');
+    if (event.target === modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Close modal when clicking the close button
+document.querySelector('.close-preview').onclick = function() {
+    document.getElementById('filePreviewModal').style.display = 'none';
+}
+    </script>
+
+    <!-- Add this after the existing modals -->
+    <div class="file-preview-modal" id="filePreviewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="previewFileName"></h2>
+                <span class="close-preview">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="filePreviewContent"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Update the loadFolderFiles function in your script section -->
+    <script>
+        // ... existing code ...
+    
+        // Update delete button click handler
+        document.querySelector('.delete-btn').addEventListener('click', async () => {
+            const folderName = document.getElementById('resourceFolderName').textContent;
+            await deleteSelectedFiles(folderName);
+            loadFolderFiles(folderName); // Refresh the file list after deletion
+        });
     </script>
 </body>
 </html>
+

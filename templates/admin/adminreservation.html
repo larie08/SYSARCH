@@ -49,6 +49,8 @@
                             <th>Course</th>
                             <th>Purpose</th>
                             <th>Laboratory</th>
+                            <th>Computer Unit</th>
+                            <th>Time</th>
                             <th>Remaining Sessions</th>
                             <th>Actions</th>
                         </tr>
@@ -67,6 +69,8 @@
                             <td>{{ reservation.course }}</td>
                             <td>{{ reservation.purpose }}</td>
                             <td>{{ reservation.lab }}</td>
+                            <td>PC {{ reservation.computer }}</td>
+                            <td>{{ reservation.time_in }}</td>
                             <td>{{ reservation.sessions }}</td>
                             <td class="action-buttons">
                                 <button onclick="processReservation({{ reservation.id }}, 'approve')" class="approve-btn">

@@ -97,10 +97,10 @@ def admin_dashboard():
 @app.route('/admin/pending_reservations')
 def admin_pending_reservations():
     if 'admin_id' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('admin_login'))
     
-    formatted_reservations = get_pending_reservations()
-    return render_template('admin/adminreservation.html', reservations=formatted_reservations)
+    reservations = get_pending_reservations()  # Update this function to include computer and time_in
+    return render_template('admin/adminreservation.html', reservations=reservations)
 
 @app.route('/admin/process_reservation/<int:reservation_id>/<string:action>', methods=['POST'])
 def process_reservation(reservation_id, action):
@@ -400,24 +400,66 @@ def edit_announcement(announcement_id):
 
 @app.route('/admin/sit_in_student', methods=['POST'])
 def sit_in_student():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
     data = request.get_json()
     student_id = data.get('student_id')
-    purpose = standardize_purpose(data.get('purpose', '').strip())
-    laboratory = data.get('laboratory')
+    purpose = data.get('purpose')
+    lab = data.get('lab')  # Changed from 'laboratory' to match frontend
+    computer_number = data.get('computer_number')
     
-    if not all([student_id, purpose, laboratory]):
-        return jsonify({'error': 'Missing required data'}), 400
-    
-    success, result = create_sit_in_session(student_id, purpose, laboratory)
-    
-    if success:
+    # Validate required fields
+    if not all([student_id, purpose, lab, computer_number]):
+        return jsonify({
+            'success': False, 
+            'error': 'Missing required fields (student_id, purpose, lab, computer_number)'
+        }), 400
+
+    try:
+        # First check remaining sessions
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT sessions FROM users WHERE idno = ?", (student_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return jsonify({'success': False, 'error': 'Student not found'})
+                
+            remaining_sessions = int(result[0]) if result[0] is not None else 0
+            
+            if remaining_sessions <= 0:
+                return jsonify({
+                    'success': False, 
+                    'error': 'No remaining sessions available'
+                })
+                
+            # Proceed with sit-in if sessions available
+            cursor.execute("""
+                INSERT INTO reservations (idno, purpose, lab, computer_number, status, time_in)
+                VALUES (?, ?, ?, ?, 'Active', datetime('now', 'localtime'))
+            """, (student_id, purpose, lab, computer_number))
+            
+            # Deduct one session
+            cursor.execute("""
+                UPDATE users 
+                SET sessions = sessions - 1 
+                WHERE idno = ?
+            """, (student_id,))
+            
+            conn.commit()
+            
         return jsonify({
             'success': True,
-            'remaining_sessions': result,
-            'message': f'Sit-in recorded successfully. {result} sessions remaining.'
+            'message': 'Sit-in recorded successfully'
         })
-    
-    return jsonify({'error': result}), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 
 @app.route('/admin/current-sitin')
 def admin_current_sitin():
@@ -441,6 +483,151 @@ def admin_records():
                          records=completed_sitins,
                          purpose_counts=purpose_counts,
                          lab_counts=lab_counts)
+
+@app.route('/admin/upload-resource', methods=['POST'])
+def upload_resource():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    folder = request.form.get('folder')
+    files = request.files.getlist('files[]')
+    
+    if not folder:
+        return jsonify({'error': 'No folder specified'}), 400
+    
+    folder_path = os.path.join(RESOURCE_FOLDER, folder)
+    os.makedirs(folder_path, exist_ok=True)
+    
+    uploaded_files = []
+    try:
+        for file in files:
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(folder_path, filename)
+                file.save(file_path)
+                uploaded_files.append(filename)
+        
+        return jsonify({
+            'success': True,
+            'files': uploaded_files
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/get-resources/<folder>')
+def get_resources(folder):
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    folder_path = os.path.join(RESOURCE_FOLDER, folder)
+    if not os.path.exists(folder_path):
+        return jsonify([])
+    
+    try:
+        files = []
+        for f in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, f)
+            if os.path.isfile(file_path):
+                files.append({
+                    'name': f,
+                    'size': os.path.getsize(file_path),
+                    'modified': datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
+                })
+        return jsonify(files)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/delete-resource-file', methods=['POST'])
+def delete_resource_file():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json()
+    folder = data.get('folder')
+    filename = data.get('filename')
+    
+    if not folder or not filename:
+        return jsonify({'error': 'Folder and filename are required'}), 400
+    
+    file_path = os.path.join(RESOURCE_FOLDER, folder, filename)
+    
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return jsonify({
+                'success': True,
+                'message': f'File {filename} deleted successfully'
+            })
+        return jsonify({'error': 'File not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/download-resources/<folder>', methods=['GET'])
+def download_resources(folder):
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    folder_path = os.path.join(RESOURCE_FOLDER, folder)
+    if not os.path.exists(folder_path):
+        return jsonify({'error': 'Folder not found'}), 404
+
+    try:
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arc_name = os.path.relpath(file_path, folder_path)
+                    zf.write(file_path, arc_name)
+
+        memory_file.seek(0)
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f'{folder}_resources.zip'
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/preview-resource/<folder>/<filename>')
+def preview_resource(folder, filename):
+    if 'username' not in session and 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    file_path = os.path.join(RESOURCE_FOLDER, folder, filename)
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    # Get file extension
+    file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    
+    # Set appropriate MIME type
+    mime_types = {
+        'pdf': 'application/pdf',
+        'txt': 'text/plain',
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls': 'application/vnd.ms-excel',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'ppt': 'application/vnd.ms-powerpoint',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    }
+    
+    mimetype = mime_types.get(file_ext, 'application/octet-stream')
+    
+    try:
+        return send_file(
+            file_path,
+            mimetype=mimetype,
+            as_attachment=False
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/logout_student', methods=['POST'])
 def logout_student():
@@ -604,112 +791,6 @@ def Resources():
     resources = get_student_resources(session['student_id'])
     return render_template('student/lab.html', resources=resources)
 
-@app.route('/admin/upload-resource', methods=['POST'])
-def upload_resource():
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    folder = request.form.get('folder')
-    files = request.files.getlist('files[]')
-    
-    if not folder:
-        return jsonify({'error': 'No folder specified'}), 400
-    
-    folder_path = os.path.join(RESOURCE_FOLDER, folder)
-    os.makedirs(folder_path, exist_ok=True)
-    
-    uploaded_files = []
-    try:
-        for file in files:
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                file_path = os.path.join(folder_path, filename)
-                file.save(file_path)
-                uploaded_files.append(filename)
-        
-        return jsonify({
-            'success': True,
-            'files': uploaded_files
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/admin/get-resources/<folder>')
-def get_resources(folder):
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-        
-    folder_path = os.path.join(RESOURCE_FOLDER, folder)
-    if not os.path.exists(folder_path):
-        return jsonify([])
-    
-    try:
-        files = []
-        for f in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, f)
-            if os.path.isfile(file_path):
-                files.append({
-                    'name': f,
-                    'size': os.path.getsize(file_path),
-                    'modified': datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
-                })
-        return jsonify(files)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/admin/delete-resource-file', methods=['POST'])
-def delete_resource_file():
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    data = request.get_json()
-    folder = data.get('folder')
-    filename = data.get('filename')
-    
-    if not folder or not filename:
-        return jsonify({'error': 'Folder and filename are required'}), 400
-    
-    file_path = os.path.join(RESOURCE_FOLDER, folder, filename)
-    
-    try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            return jsonify({
-                'success': True,
-                'message': f'File {filename} deleted successfully'
-            })
-        return jsonify({'error': 'File not found'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/admin/download-resources/<folder>', methods=['GET'])
-def download_resources(folder):
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    folder_path = os.path.join(RESOURCE_FOLDER, folder)
-    if not os.path.exists(folder_path):
-        return jsonify({'error': 'Folder not found'}), 404
-
-    try:
-        memory_file = io.BytesIO()
-        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for root, dirs, files in os.walk(folder_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arc_name = os.path.relpath(file_path, folder_path)
-                    zf.write(file_path, arc_name)
-
-        memory_file.seek(0)
-        return send_file(
-            memory_file,
-            mimetype='application/zip',
-            as_attachment=True,
-            download_name=f'{folder}_resources.zip'
-        )
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/Session')
 def Session():
     if 'username' not in session:
@@ -722,31 +803,40 @@ def Session():
                          available_sessions=available_sessions,
                          used_sessions=used_sessions)
 
-@app.route('/submit_reservation', methods=['POST'])
-def submit_reservation():
+@app.route('/get-computers/<lab>')
+def get_computers(lab):
     if 'username' not in session:
-        print("No username in session")
         return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        # Get all active reservations for this lab
+        active_computers = get_active_lab_computers(lab)
         
-    data = request.get_json()
-    student_id = session.get('student_id')
-    purpose = data.get('purpose')
-    laboratory = data.get('laboratory')
-    
-    print(f"Received reservation request - Student ID: {student_id}, Purpose: {purpose}, Lab: {laboratory}")
-    
-    success, new_id, result = create_reservation(student_id, purpose, laboratory)
-    
-    if success:
-        print(f"Created reservation with ID: {new_id}")
-        print(f"Newly created reservation: {result}")
-        return jsonify({
-            'success': True,
-            'message': 'Reservation submitted for approval'
-        })
-    
-    print(f"Error submitting reservation: {result}")
-    return jsonify({'error': result}), 500
+        # Get maintenance status for computers
+        maintenance_computers = get_maintenance_computers(lab)
+        
+        computers = []
+        for i in range(1, 51):
+            status = 'active'  # default status
+            
+            # Check if computer is in use
+            if i in active_computers:
+                status = 'used'
+            
+            # Check if computer is under maintenance
+            if i in maintenance_computers:
+                status = 'maintenance'
+                
+            computers.append({
+                'id': i,
+                'name': f'PC {i}',
+                'status': status
+            })
+            
+        return jsonify(computers)
+    except Exception as e:
+        print(f"Error getting computers: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/History')
 def History():
@@ -765,17 +855,88 @@ def delete_record(record_id):
         return jsonify({'success': True})
     return jsonify({'success': False, 'error': 'Record not found'}), 404
 
-@app.route('/Reservation')
+@app.route('/Reservation', methods=['GET', 'POST'])
 def Reservation():
     if 'username' not in session:
         return redirect(url_for('login'))
     
+    if request.method == 'POST':
+        try:
+            data = request.get_json() if request.is_json else request.form
+            student_id = data.get('student_id')
+            lab = data.get('lab')
+            computer = data.get('computer')
+            time_in = data.get('time_in')
+            purpose = data.get('purpose')
+            
+            # Create reservation in database
+            success, new_id, result = create_reservation(student_id, lab, computer, time_in, purpose)
+            
+            if success:
+                if request.is_json:
+                    return jsonify({
+                        'success': True,
+                        'message': 'Reservation submitted successfully! Waiting for admin approval.'
+                    })
+                flash('Reservation submitted successfully! Waiting for admin approval.', 'success')
+                return redirect(url_for('Dashboard'))
+            else:
+                if request.is_json:
+                    return jsonify({'success': False, 'error': 'Failed to submit reservation'})
+                flash('Failed to submit reservation. Please try again.', 'error')
+                return redirect(url_for('Reservation'))
+            
+        except Exception as e:
+            print(f"Reservation error: {e}")
+            if request.is_json:
+                return jsonify({'success': False, 'error': str(e)})
+            flash('An error occurred. Please try again.', 'error')
+            return redirect(url_for('Reservation'))
+    
+    # GET request - show form
     user = get_user_reservation_data(session['student_id'])
     if not user:
         flash('Error loading user data', 'error')
         return redirect(url_for('Dashboard'))
         
     return render_template('student/reservation.html', user=user)
+
+@app.route('/submit_reservation', methods=['POST'])
+def submit_reservation():
+    if 'username' not in session:
+        print("No username in session")
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.get_json()
+    student_id = session.get('student_id')
+    lab = data.get('lab')  # Changed from 'laboratory' to 'lab'
+    computer = data.get('computer')  # Changed from 'computer_number' to 'computer'
+    time_in = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    purpose = data.get('purpose')
+    
+    print(f"Received reservation request - Student ID: {student_id}, Purpose: {purpose}, Lab: {lab}")
+    
+    if not all([student_id, lab, computer, purpose]):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    success, new_id, result = create_reservation(
+        student_id=student_id,
+        lab=lab,
+        computer=computer,
+        time_in=time_in,
+        purpose=purpose
+    )
+    
+    if success:
+        print(f"Created reservation with ID: {new_id}")
+        print(f"Newly created reservation: {result}")
+        return jsonify({
+            'success': True,
+            'message': 'Reservation submitted for approval'
+        })
+    
+    print(f"Error submitting reservation: {result}")
+    return jsonify({'error': result}), 500
 
 @app.route('/submit_feedback', methods=['POST'])
 def submit_feedback():

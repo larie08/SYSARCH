@@ -190,15 +190,6 @@ body {
     margin: 20px 0;
 }
 
-.sit-in-btn {
-    background-color: #603A75;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-}
 
 .table-container {
     background: white;
@@ -225,18 +216,37 @@ body {
 }
 
 .sit-in-btn {
-    background-color: #4CAF50;
+    background-color: #603A75;
     color: white;
     padding: 10px 20px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     font-size: 14px;
-    margin-top: 10px;
+    transition: background-color 0.3s;
+    margin-left: 10px;
 }
 
 .sit-in-btn:hover {
-    background-color: #45a049;
+    background-color: #4a2d5c;
+}
+
+.sit-in-button {
+    background-color: #603A75;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 16px;
+    margin-top: 20px;
+    transition: background-color 0.3s;
+    z-index: 1001;
+}
+
+.sit-in-button:hover {
+    background-color: #4a2d5c;
 }
 
 .search-input {
@@ -261,16 +271,6 @@ body {
     display: flex;
     justify-content: flex-end;
     margin: 20px 0;
-}
-
-.sit-in-btn {
-    background-color: #603A75;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
 }
 
 .table-container {
@@ -392,7 +392,7 @@ tbody tr:hover {
 }
 
 #sitInModal .modal-content {
-    width: 1000px;
+    width: 1100px;
 }
 
 .modal-header {

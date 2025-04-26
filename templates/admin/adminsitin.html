@@ -18,7 +18,7 @@
             </div>
             <ul class="nav-links">
                 <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
-                <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop" class="active"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_sitin') }}" class="active"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
                 <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
                 <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
                 <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
@@ -131,6 +131,7 @@
                             <th>Name</th>
                             <th>Purpose</th>
                             <th>Laboratory</th>
+                            <th>PC Number</th>
                             <th>Remaining Session</th>
                         </tr>
                     </thead>
@@ -211,7 +212,8 @@
                         return;
                     }
                     
-                    // Populate the sit-in form
+                    const remainingSessions = parseInt(data.remaining_sessions) || 0;
+                    
                     const studentDetails = document.getElementById('studentDetails');
                     studentDetails.innerHTML = `
                         <td>${data.id}</td>
@@ -244,13 +246,20 @@
                                     <option value="Lab 530">Lab 530</option>
                                     <option value="Lab 542">Lab 542</option>
                                     <option value="Lab 544">Lab 544</option>
-    
                             </select>
                         </td>
-                        <td>${data.remainingSession}</td>
+                        <td>
+                            <select id="pc_number" name="computer_number" required>
+                                <!-- Changed name to computer_number -->
+                                <option value="">Select PC</option>
+                                ${Array.from({length: 50}, (_, i) => i + 1).map(num => 
+                                    `<option value="${num}">PC ${num}</option>`
+                                ).join('')}
+                            </select>
+                        </td>
+                        <td>${remainingSessions}</td>
                     `;
 
-              
                     searchModal.style.display = 'none';
                     sitInModal.style.display = 'block';
                 })
@@ -261,19 +270,20 @@
         }
 
         /*SIT IN MODAL*/
-
         const sitInButton = document.querySelector('.sit-in-button');
-        
+
         sitInButton.addEventListener('click', () => {
             const studentId = document.querySelector('#studentDetails td:first-child').textContent;
             const purpose = document.querySelector('#purpose').value;
             const laboratory = document.querySelector('#laboratory').value;
-        
-            if (!purpose || !laboratory) {
-                alert('Please select both purpose and laboratory');
+            const computerNumber = document.querySelector('#pc_number').value;
+            const remainingSessions = parseInt(document.querySelector('#studentDetails td:nth-child(6)').textContent);
+
+            if (!purpose || !laboratory || !computerNumber) {
+                alert('Please fill in all required fields');
                 return;
             }
-        
+
             fetch('/admin/sit_in_student', {
                 method: 'POST',
                 headers: {
@@ -282,24 +292,32 @@
                 body: JSON.stringify({
                     student_id: studentId,
                     purpose: purpose,
-                    laboratory: laboratory
+                    lab: laboratory,  // Changed to match database column name
+                    computer_number: parseInt(computerNumber),  // Changed to match database column name
+                    remaining_sessions: remainingSessions
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.error || 'Server error');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
-                    alert('Student successfully registered for sit-in');
-                    sitInModal.style.display = 'none';
-                    window.location.href = '/admin/current-sitin';  // Redirect to current sit-in page
+                    alert('Sit-in recorded successfully!');
+                    location.reload();
                 } else {
-                    alert(data.error || 'Failed to register student for sit-in');
+                    alert(data.error || 'Failed to record sit-in');
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while processing the request');
+                console.error('Error details:', error);
+                alert(`Error: ${error.message || 'Failed to process sit-in request'}`);
             });
-        });   
+        });
         
         function resetSession(studentId, course) {
             if (confirm('Are you sure you want to reset this student\'s session?')) {
@@ -328,8 +346,6 @@
                 });
             }
         }
-
-                // ... existing code ...
 
             function resetAllSessions() {
             if (confirm('Are you sure you want to reset sessions for all students? This action cannot be undone.')) {
