@@ -213,6 +213,38 @@ def admin_resources():
     resources = get_lab_resources()
     return render_template('admin/adminlabresources.html', resources=resources)
 
+@app.route('/admin/computer_control', methods=['GET', 'POST'])
+def admin_computer_control():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    lab = request.args.get('lab', 'default_lab') 
+    
+    if request.method == 'POST':
+        # Update computer status
+        computer_id = request.form.get('computer_id')
+        new_status = request.form.get('status')
+        
+        try:
+            if update_computer_status(lab, computer_id, new_status):
+                flash(f'Computer {computer_id} status updated to {new_status}', 'success')
+            else:
+                flash(f'Failed to update status for computer {computer_id}', 'error')
+        except Exception as e:
+            flash(f'Error updating computer status: {str(e)}', 'error')
+    
+    try:
+        computers = get_lab_computers(lab)  # Fetch all computers for the lab
+        # Ensure all 50 computers are listed
+        all_computers = [{'id': i, 'status': 'available'} for i in range(1, 51)]
+        for computer in computers:
+            all_computers[computer['id'] - 1]['status'] = computer['status']
+    except Exception as e:
+        flash(f'Error fetching computers for lab {lab}: {str(e)}', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    return render_template('admin/admincomputer.html', computers=all_computers)
+
 @app.route('/admin/resources/edit/<int:resource_id>', methods=['GET', 'POST'])
 def edit_resource(resource_id):
     if 'admin_id' not in session:

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computer Control - Admin</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin/admincomputer.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo"><br>
+                <span class="admin-text">CCS Admin</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop"></i></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
+                <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
+                <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_resources') }}"><i class="fas fa-bookmark"></i>Resources</a></li>
+                <li><a href="{{ url_for('admin_computer_control') }}" class="active"><i class="fas fa-desktop"></i>Computer Control</a></li>
+                <li><a href="{{ url_for('admin_pending_reservations') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+                <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i></i>Reports</a></li>
+                <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i></i>Feedback</a></li>
+            </ul>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="logout-btn"></i>Log Out</a>
+            </div>
+        </nav>
+        <div class="main-content">
+            <div class="top-bar">
+                <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
+            </div>
+
+        <div class="header">
+            <h1>Computer Control</h1>
+            <div class="lab-selection">
+                <button class="lab-btn">Lab 517</button>
+                <button class="lab-btn">Lab 524</button>
+                <button class="lab-btn">Lab 526</button>
+                <button class="lab-btn">Lab 528</button>
+                <button class="lab-btn">Lab 530</button>
+                <button class="lab-btn">Lab 542</button>
+            </div>
+        </div>
+        
+        <div class="computer-status">
+            <div class="status-label">
+                <span>Available</span>
+                <span>Currently Used</span>
+                <span>Maintenance</span>
+            </div>
+            <div class="computers">
+                {% for computer in computers %}
+                <div class="computer">
+                    <div class="computer-icon {{ computer.status }}">
+                        <i class="fas fa-desktop"></i>
+                    </div>
+                    <span>PC {{ computer.id }}</span>
+                    <button class="maintenance-btn" onclick="updateStatus({{ computer.id }}, 'maintenance')">Set Maintenance</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        /*SIDEBAR*/
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        let isSidebarOpen = true;
+    
+        function toggleSidebar() {
+        isSidebarOpen = !isSidebarOpen;
+        if (isSidebarOpen) {
+            sidebar.style.left = '0';
+            mainContent.style.marginLeft = '250px';
+            sidebarToggle.classList.remove('collapsed');
+        } else {
+            sidebar.style.left = '-250px';
+            mainContent.style.marginLeft = '0';
+            sidebarToggle.classList.add('collapsed');
+        }
+    }
+        sidebarToggle.addEventListener('click', toggleSidebar);
+
+    /*SIDEBAR*/
+    function updateStatus(computerId, status) {
+        // Implement AJAX call to update computer status
+        console.log(`Updating computer ${computerId} to ${status}`);
+        // Example AJAX call (requires server-side implementation)
+        fetch(`/admin/update_computer_status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ computerId, status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Status updated successfully');
+                location.reload();
+            } else {
+                alert('Failed to update status');
+            }
+        });
+    }
+    </script>
+</body>
+</html>

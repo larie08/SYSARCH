@@ -1511,6 +1511,41 @@ def logout_student_session(student_id):
         return False, str(e)
 # admin logout student end
 
+# admin computer control start
+def update_computer_status(lab, computer_id, new_status):
+    """Update the status of a specific computer in a lab."""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE lab_computers
+                SET status = ?
+                WHERE lab = ? AND computer_number = ?
+            """, (new_status, lab, computer_id))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error updating computer status: {e}")
+        return False
+
+def get_lab_computers(lab):
+    """Fetch all computers in a lab with their current status."""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT computer_number, status
+                FROM lab_computers
+                WHERE lab = ?
+                ORDER BY computer_number
+            """, (lab,))
+            return [{'id': row[0], 'status': row[1]} for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"Error fetching lab computers: {e}")
+        return []
+
+# admin computer control end
+
 
 # admin feedback start
 def get_all_feedbacks():
