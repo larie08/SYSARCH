@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response
 from dbhelper import *
 import io
 import os
@@ -99,7 +99,7 @@ def admin_pending_reservations():
     if 'admin_id' not in session:
         return redirect(url_for('admin_login'))
     
-    reservations = get_pending_reservations()  # Update this function to include computer and time_in
+    reservations = get_pending_reservations()  # Ensure this function includes all necessary fields
     return render_template('admin/adminreservation.html', reservations=reservations)
 
 @app.route('/admin/process_reservation/<int:reservation_id>/<string:action>', methods=['POST'])
@@ -117,6 +117,14 @@ def process_reservation(reservation_id, action):
     
     print(f"Error processing reservation: {message}")
     return jsonify({'error': message}), 500
+
+@app.route('/admin/reservation_logs')
+def reservation_logs():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    reservation_logs = get_reservation_logs()  # Fetch accepted and rejected reservations
+    return render_template('admin/adminlogs.html', reservations=reservation_logs)
 
 @app.route('/admin/add_point', methods=['POST'])
 def add_point():
@@ -280,6 +288,63 @@ def delete_resource(resource_id):
         flash('Failed to delete laboratory resource', 'error')
     
     return redirect(url_for('admin_resources'))
+
+@app.route('/admin/lab_schedules', methods=['GET', 'POST'])
+def admin_lab_schedules():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        lab_number = request.form.get('lab_number')
+        schedule_date = request.form.get('schedule_date')
+        start_time = request.form.get('start_time')
+        end_time = request.form.get('end_time')
+        description = request.form.get('description')
+        
+        # Validate and parse the schedule_date
+        try:
+            schedule_date = datetime.strptime(schedule_date, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
+            return redirect(url_for('admin_lab_schedules'))
+        
+        if add_lab_schedule(lab_number, schedule_date, start_time, end_time, description):
+            flash('Lab schedule added successfully', 'success')
+        else:
+            flash('Failed to add lab schedule', 'error')
+    
+    schedules = get_lab_schedules()
+    return render_template('admin/adminlabschedule.html', schedules=schedules)
+
+@app.route('/admin/lab_schedules/delete/<int:schedule_id>')
+def delete_lab_schedule_route(schedule_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    if delete_lab_schedule(schedule_id):
+        flash('Lab schedule deleted successfully', 'success')
+    else:
+        flash('Failed to delete lab schedule', 'error')
+    
+    return redirect(url_for('admin_lab_schedules'))
+
+@app.route('/admin/download_lab_schedule_pdf')
+def download_lab_schedule_pdf():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Get all lab schedules
+    schedules = get_lab_schedules()
+    
+    # Generate PDF
+    pdf_buffer = generate_lab_schedule_pdf(schedules)
+    
+    # Create response
+    response = make_response(pdf_buffer.getvalue())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=lab_schedules.pdf'
+    
+    return response
 
 @app.route('/admin/reports')
 def admin_reports():
@@ -701,18 +766,51 @@ def Dashboard():
         return redirect(url_for('login'))
         
     rejection_message = session.pop('rejection_message', None)
-    
-    # Get user points and sessions data
     points_data = get_user_points_and_sessions(session['student_id'])
-    points = points_data['points']  # This will get the actual points value
+    points = points_data['points']
     
+    lab_schedules = get_lab_schedules()
     reservations = get_user_reservations(session['student_id'])
-    
+        
     return render_template('student/index.html', 
                          username=session['username'],
                          reservations=reservations,
                          rejection_message=rejection_message,
-                         points=points)  # Pass the points to the template
+                         points=points,
+                         lab_schedules=lab_schedules)  
+
+@app.route('/quick_reserve', methods=['POST'])
+def handle_quick_reserve():
+    if 'username' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    student_id = session['student_id']
+    lab = data.get('lab')
+    computer = data.get('computer')
+    schedule_date = data.get('date')
+    start_time = data.get('start_time')
+    end_time = data.get('end_time')
+    purpose = data.get('purpose')
+    
+    if not all([lab, computer, schedule_date, start_time, end_time, purpose]):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    success, message = quick_reserve(
+        student_id, lab, computer, schedule_date,
+        start_time, end_time, purpose
+    )
+    
+    if success:
+        return jsonify({
+            'success': True,
+            'message': 'Reservation submitted successfully! Waiting for admin approval.'
+        })
+    
+    return jsonify({
+        'success': False,
+        'error': message
+    }), 400
 
 @app.route('/get-points')
 def get_points():
@@ -991,36 +1089,33 @@ def submit_feedback():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        try:
-            user_data = {
-                'idno': request.form['idno'],
-                'lastname': request.form['lastname'],
-                'firstname': request.form['firstname'],
-                'middlename': request.form.get('middlename', ''),
-                'course': request.form['course'],
-                'year_level': request.form['level'],
-                'email': request.form['email'],
-                'username': request.form['username'],
-                'password': generate_password_hash(request.form['password']),
-                'address': request.form.get('address', '')
-            }
-            
-            is_valid, error_msg = validate_registration_data(user_data)
-            if not is_valid:
-                flash(error_msg, "error")
-                return render_template('register.html')
-            
-            success, session_limit, error = process_registration(user_data, user_data['course'])
-            if success:
-                flash(f"Registration successful! Your session limit is {session_limit}.", "success")
-                return redirect(url_for('login'))
-            
-            flash(error or "Registration failed. Please try again.", "error")
-            
-        except Exception as e:
-            print(f"Registration error: {e}")
-            flash("Registration failed. Please try again.", "error")
-            
+        idno = request.form.get('idno')
+        lastname = request.form.get('lastname')
+        firstname = request.form.get('firstname')
+        middlename = request.form.get('middlename', '')  # Optional field
+        level = request.form.get('level')
+        course = request.form.get('course')
+        address = request.form.get('address')
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        # Check if user already exists
+        if user_exists(idno, username, email):
+            flash('User with this ID, username, or email already exists', 'error')
+            return render_template('student/register.html', error='Registration failed')
+        
+        # Set session limit based on course
+        session_limit = 30 if course in ['BSIT', 'BSCS'] else 15
+        
+        # Register the user
+        if register_user(idno, lastname, firstname, middlename, level, course, address, username, email, password, session_limit):
+            flash('Registration successful! You can now log in.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Registration failed', 'error')
+            return render_template('student/register.html', error='Registration failed')
+    
     return render_template('student/register.html')
 
 @app.route('/forgot_password', methods=['GET', 'POST'])

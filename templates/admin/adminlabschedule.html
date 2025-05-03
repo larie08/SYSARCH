@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Schedules - Admin</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ccs.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin/labschedule.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    
+    <div class="dashboard-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/ccs.png') }}" alt="ccs logo" class="logo"><br>
+                <span class="admin-text">CCS Admin</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-th-large"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('admin_sitin') }}"><i class="fa-solid fa-laptop"></i>Sit-in</a></li>
+                <li><a href="{{ url_for('admin_current_sitin') }}"><i class="fas fa-calendar-check"></i>Current Sit-in</a></li>
+                <li><a href="{{ url_for('admin_records') }}"><i class="fas fa-folder"></i>Sit-in Records</a></li>
+                <li><a href="{{ url_for('admin_announcement') }}"><i class="fas fa-bullhorn"></i>Announcement</a></li>
+                <li><a href="{{ url_for('admin_resources') }}"><i class="fas fa-bookmark"></i>Resources</a></li>
+                <li><a href="{{ url_for('admin_lab_schedules') }}" class="active"><i class="fas fa-clock"></i>Lab Schedules</a></li>
+                <li><a href="{{ url_for('admin_computer_control') }}"><i class="fas fa-desktop"></i>Computer Control</a></li>
+                <li><a href="{{ url_for('admin_pending_reservations') }}"><i class="fas fa-calendar-check"></i>Reservation</a></li>
+                <li><a href="{{ url_for('reservation_logs') }}"><i class="fas fa-history"></i>Reservation Logs</a></li>
+                <li><a href="{{ url_for('admin_reports') }}"><i class="fa-solid fa-file"></i>Reports</a></li>
+                <li><a href="{{ url_for('admin_feedback') }}"><i class="fa-solid fa-comments"></i>Feedback</a></li>
+            </ul>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
+            </div>
+        </nav>
+
+        <div class="main-content">
+            <div class="top-bar">
+                <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
+            </div>
+            
+            <div class="header">
+                <h1>Laboratory Schedules</h1>
+                <div class="button-group">
+                    <button class="add-schedule-btn" onclick="showModal()">+ Add Schedule</button>
+                    <a href="{{ url_for('download_lab_schedule_pdf') }}" class="download-pdf-btn">
+                        <i class="fas fa-file-pdf"></i> Download Schedule (PDF)
+                    </a>
+                </div>
+            </div>
+
+            <div class="flash-container">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <ul class="flashes">
+                    {% for category, message in messages %}
+                        <li class="flash-message {{ category }}">{{ message }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Modal -->
+            <div id="scheduleModal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2>Add New Schedule</h2>
+                    <form method="POST">
+                        <div class="form-group">
+                            <label for="lab_number">Laboratory:</label>
+                            <select name="lab_number" required>
+                                <option value="">Select Laboratories</option>
+                                <option value="Lab 517">Lab 517</option>
+                                <option value="Lab 524">Lab 524</option>
+                                <option value="Lab 526">Lab 526</option>
+                                <option value="Lab 528">Lab 528</option>
+                                <option value="Lab 530">Lab 530</option>
+                                <option value="Lab 542">Lab 542</option>
+                                <option value="Lab 544">Lab 544</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="schedule_date">Date:</label>
+                            <input type="date" name="schedule_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="start_time">Start Time:</label>
+                            <input type="time" name="start_time" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="end_time">End Time:</label>
+                            <input type="time" name="end_time" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Description:</label>
+                            <textarea name="description" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn-submit">Save Schedule</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="schedules-list">
+                <h2>Current Schedules</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Laboratory</th>
+                            <th>Date</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in schedules %}
+                        <tr>
+                            <td>{{ schedule[1] }}</td>
+                            <td>{{ schedule[2] }}</td>
+                            <td>{{ schedule[3] }}</td>
+                            <td>{{ schedule[4] }}</td>
+                            <td>{{ schedule[5] }}</td>
+                            <td>
+                                <a href="{{ url_for('delete_lab_schedule_route', schedule_id=schedule[0]) }}" 
+                                   class="btn-delete" 
+                                   onclick="return confirm('Are you sure you want to delete this schedule?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        let isSidebarOpen = true;
+    
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.style.left = '0';
+                mainContent.style.marginLeft = '250px';
+                sidebarToggle.classList.remove('collapsed');
+            } else {
+                sidebar.style.left = '-250px';
+                mainContent.style.marginLeft = '0';
+                sidebarToggle.classList.add('collapsed');
+            }
+        }
+        sidebarToggle.addEventListener('click', toggleSidebar);
+
+        // Modal functionality
+        const modal = document.getElementById('scheduleModal');
+        const closeBtn = document.getElementsByClassName('close')[0];
+
+        function showModal() {
+            modal.classList.add('show');
+        }
+
+        closeBtn.onclick = function() {
+            modal.classList.remove('show');
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.classList.remove('show');
+            }
+        }
+
+        function convertTo12HourFormat(time24) {
+        const [hour, minute] = time24.split(':');
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12; // Convert '0' to '12' for midnight
+        return `${hour12}:${minute} ${period}`;
+    }
+
+    // Convert all schedule times to 12-hour format
+    document.addEventListener('DOMContentLoaded', () => {
+        const timeCells = document.querySelectorAll('.schedules-list tbody td:nth-child(3), .schedules-list tbody td:nth-child(4)');
+        timeCells.forEach(cell => {
+            cell.textContent = convertTo12HourFormat(cell.textContent);
+        });
+    });
+    </script>
+</body>
+</html>

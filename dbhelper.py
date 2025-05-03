@@ -7,6 +7,10 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
 from datetime import datetime
+from werkzeug.security import check_password_hash, generate_password_hash
+import os
+import time
+from werkzeug.utils import secure_filename
 
 def connect_db():
     conn = sqlite3.connect('users.db')
@@ -125,7 +129,51 @@ def add_user(user_data):
         print(f"Database error: {e}")
         return False
 
+def user_exists(idno, username, email):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE IDNO = ? OR username = ? OR email = ?", 
+                          (idno, username, email))
+            return cursor.fetchone() is not None
+    except Exception as e:
+        print(f"Error checking if user exists: {e}")
+        return True  # Assume user exists on error to prevent registration
+
+
 # student register start
+def register_user(idno, lastname, firstname, middlename, level, course, address, username, email, password, session_limit):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # First check if user already exists with more specific checks
+            cursor.execute("SELECT * FROM users WHERE IDNO = ?", (idno,))
+            if cursor.fetchone():
+                print(f"User with ID {idno} already exists")
+                return False
+                
+            cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+            if cursor.fetchone():
+                print(f"User with username {username} already exists")
+                return False
+                
+            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+            if cursor.fetchone():
+                print(f"User with email {email} already exists")
+                return False
+            
+            # If all checks pass, insert the new user
+            cursor.execute("""
+                INSERT INTO users (IDNO, lastname, firstname, middlename, year_level, course, address, username, email, password, sessions)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (idno, lastname, firstname, middlename, level, course, address, username, email, password, session_limit))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error registering user: {e}")
+        return False
+
 def validate_registration_data(user_data):
     required_fields = ['idno', 'lastname', 'firstname', 'course', 'year_level', 
                       'email', 'username', 'password']
@@ -731,38 +779,6 @@ def create_reservation(student_id, lab, computer, time_in, purpose):
         print(f"Error creating reservation: {e}")
         return False, None, str(e)
 
-def get_pending_reservations():
-    try:
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT r.id, r.idno, u.firstname, u.lastname, u.course, 
-                       r.purpose, r.lab, r.computer_number, r.time_in,
-                       u.sessions, u.photo
-                FROM reservations r
-                JOIN users u ON r.idno = u.idno
-                WHERE r.status = 'Pending'
-                ORDER BY r.time_in ASC
-            """)
-            
-            reservations = []
-            for row in cursor.fetchall():
-                reservations.append({
-                    'id': row[0],
-                    'idno': row[1],
-                    'name': f"{row[2]} {row[3]}",
-                    'course': row[4],
-                    'purpose': row[5],
-                    'lab': row[6],
-                    'computer': row[7],
-                    'time_in': row[8],
-                    'sessions': row[9],
-                    'photo': row[10] if row[10] else 'default.png'
-                })
-            return reservations
-    except Exception as e:
-        print(f"Error fetching pending reservations: {e}")
-        return []
 
 def delete_user_record(record_id, student_id):
     try:
@@ -995,23 +1011,18 @@ def add_student_point(student_id):
         return False, str(e)
 
 def get_student_leaderboard():
+    """Get top 5 students with the most sit-ins"""
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT 
-                    u.firstname,
-                    u.lastname,
-                    u.course,
-                    COUNT(r.id) as sit_in_count,
-                    u.photo
+                SELECT u.firstname, u.lastname, u.course, COUNT(r.id) as sit_in_count, u.photo
                 FROM users u
-                LEFT JOIN reservations r ON u.idno = r.idno
+                JOIN reservations r ON u.idno = r.idno
                 WHERE r.status = 'Completed'
                 GROUP BY u.idno
-                HAVING sit_in_count > 0
                 ORDER BY sit_in_count DESC
-                LIMIT 4
+                LIMIT 5
             """)
             return cursor.fetchall()
     except Exception as e:
@@ -1173,6 +1184,9 @@ def get_pending_reservations():
                 u.course,
                 r.purpose,
                 r.lab,
+                r.computer_number,
+                strftime('%H:%M', r.time_in) as time_in,
+                strftime('%Y-%m-%d', r.requested_time) as reservation_date,
                 u.sessions,
                 COALESCE(u.photo, 'default.png') as photo
             FROM reservations r
@@ -1181,20 +1195,21 @@ def get_pending_reservations():
             ORDER BY r.requested_time DESC
         """)
         
+        columns = [column[0] for column in cursor.description]
         reservations = cursor.fetchall()
-        return [
-            {
-                'id': r[0],
-                'idno': r[1],
-                'name': r[2],
-                'course': r[3],
-                'purpose': r[4],
-                'lab': r[5],
-                'sessions': r[6],
-                'photo': r[7]
-            }
-            for r in reservations
-        ]
+        
+        result = []
+        for r in reservations:
+            reservation_dict = dict(zip(columns, r))
+            # Ensure computer_number is properly formatted
+            if 'computer_number' in reservation_dict and reservation_dict['computer_number']:
+                reservation_dict['computer_number'] = str(reservation_dict['computer_number'])
+            else:
+                reservation_dict['computer_number'] = "N/A"
+                
+            result.append(reservation_dict)
+            
+        return result
 
 def process_reservation_action(reservation_id, action):
     try:
@@ -1204,7 +1219,7 @@ def process_reservation_action(reservation_id, action):
             if action == 'approve':
                 cursor.execute("""
                     UPDATE reservations 
-                    SET status = 'Active', 
+                    SET status = 'Accepted',  -- Change status to 'Accepted'
                         time_in = datetime('now', 'localtime')
                     WHERE id = ?
                 """, (reservation_id,))
@@ -1220,7 +1235,7 @@ def process_reservation_action(reservation_id, action):
             elif action == 'decline':
                 cursor.execute("""
                     UPDATE reservations 
-                    SET status = 'Declined'
+                    SET status = 'Rejected'  -- Change status to 'Rejected'
                     WHERE id = ?
                 """, (reservation_id,))
             
@@ -1229,6 +1244,49 @@ def process_reservation_action(reservation_id, action):
             
     except Exception as e:
         return False, str(e)
+
+def get_reservation_logs():
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    r.id,
+                    r.idno,
+                    u.firstname || ' ' || COALESCE(u.middlename, '') || ' ' || u.lastname as name,
+                    u.course,
+                    r.purpose,
+                    r.lab,
+                    r.computer_number,
+                    strftime('%Y-%m-%d %H:%M', r.time_in) as time_in,
+                    COALESCE(u.sessions, 0) as sessions,
+                    strftime('%Y-%m-%d', r.requested_time) as reservation_date,
+                    r.status,
+                    COALESCE(u.photo, 'default.png') as photo
+                FROM reservations r
+                JOIN users u ON r.idno = u.idno
+                WHERE r.status IN ('Accepted', 'Rejected')
+                ORDER BY r.requested_time DESC
+            """)
+            
+            columns = [column[0] for column in cursor.description]
+            reservations = cursor.fetchall()
+            
+            result = []
+            for r in reservations:
+                reservation_dict = dict(zip(columns, r))
+                # Ensure computer_number is properly formatted
+                if 'computer_number' in reservation_dict and reservation_dict['computer_number']:
+                    reservation_dict['computer_number'] = str(reservation_dict['computer_number'])
+                else:
+                    reservation_dict['computer_number'] = "N/A"
+                    
+                result.append(reservation_dict)
+                
+            return result
+    except Exception as e:
+        print(f"Error fetching reservation logs: {e}")
+        return []
 # admin reservations end
 
 # admin sesison start
@@ -1545,6 +1603,157 @@ def get_lab_computers(lab):
         return []
 
 # admin computer control end
+
+# admin lab schedule start
+def create_tables():
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+
+        # Add lab schedule table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS lab_schedules (
+                schedule_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lab_number TEXT NOT NULL,
+                schedule_date DATE NOT NULL,
+                start_time TIME NOT NULL,
+                end_time TIME NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+
+def add_lab_schedule(lab_number, schedule_date, start_time, end_time, description):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO lab_schedules (lab_number, schedule_date, start_time, end_time, description)
+                VALUES (?, ?, ?, ?, ?)
+            """, (lab_number, schedule_date, start_time, end_time, description))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error adding lab schedule: {e}")
+        return False
+
+def get_lab_schedules():
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM lab_schedules ORDER BY schedule_date, start_time")
+            return cursor.fetchall()
+    except Exception as e:
+        print(f"Error fetching lab schedules: {e}")
+        return []
+
+def delete_lab_schedule(schedule_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM lab_schedules WHERE schedule_id = ?", (schedule_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error deleting lab schedule: {e}")
+        return False
+
+def generate_lab_schedule_pdf(schedules):
+    buffer = io.BytesIO()
+    
+    # Create the PDF document
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=72
+    )
+    
+    # Define styles
+    styles = getSampleStyleSheet()
+    title_style = styles['Title']
+    heading_style = styles['Heading2']
+    normal_style = styles['Normal']
+    
+    # Create custom styles for headers
+    h1_style = ParagraphStyle(
+        'H1',
+        parent=title_style,
+        fontSize=16,
+        alignment=1,  # Center alignment
+        spaceAfter=6
+    )
+    
+    h2_style = ParagraphStyle(
+        'H2',
+        parent=heading_style,
+        fontSize=14,
+        alignment=1,
+        spaceAfter=6
+    )
+    
+    h3_style = ParagraphStyle(
+        'H3',
+        parent=heading_style,
+        fontSize=12,
+        alignment=1,
+        spaceAfter=12
+    )
+    
+    # Create the content elements
+    elements = []
+    
+    # Add headers
+    elements.append(Paragraph("University of Cebu Main Campus", h1_style))
+    elements.append(Paragraph("College of Computer Studies", h2_style))
+    elements.append(Paragraph("Computer Laboratory Sit-in Monitoring System", h3_style))
+    elements.append(Paragraph("Laboratory Schedule", normal_style))
+    elements.append(Spacer(1, 20))
+    
+    # Create table data
+    data = [["Laboratory", "Date", "Start Time", "End Time", "Description"]]
+    
+    # Add schedule data to table
+    for schedule in schedules:
+        # Format times to 12-hour format
+        start_time = schedule[3]
+        end_time = schedule[4]
+        
+        # Add row to data
+        data.append([
+            schedule[1],  # Laboratory
+            schedule[2],  # Date
+            start_time,   # Start Time
+            end_time,     # End Time
+            schedule[5]   # Description
+        ])
+    
+    # Create the table
+    table = Table(data, colWidths=[doc.width/5.0]*5)
+    
+    # Add style to the table
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.darkgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ])
+    
+    table.setStyle(table_style)
+    elements.append(table)
+    
+    # Build the PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return buffer
+# admin lab schedule end
 
 
 # admin feedback start

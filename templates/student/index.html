@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='student/index.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -41,7 +42,6 @@
                     <h2 class="section-header">University of Cebu</h2>
                     <h3 class="section-header">College of Information and Computer Studies</h3><br>
                 </div>
-
                 <div class="content-sections">
                     <div class="schedule-section">
                         <div class="points-card">
@@ -52,94 +52,6 @@
                                     <span class="points-text">/3 points</span>
                                 </div>
                                 <p class="points-description">Earn 3 points to get an extra session!</p>
-                            </div>
-                        </div>
-
-                        <h4>Laboratory Schedules</h4>
-                        <div class="lab-schedules">
-                                <div class="lab-block">
-                                    <h5>Lab. 526</h5>
-                                    <table class="schedule-table">
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Status</th>
-                                        </tr>
-                                        <tr><td>10:00 AM - 11:00 AM</td><td class="available">Available</td></tr>
-                                        <tr><td>11:00 AM - 12:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>12:00 PM - 1:00 PM</td><td class="lunch">Lunch Break</td></tr>
-                                        <tr><td>1:00 PM - 2:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>2:00 PM - 3:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>3:00 PM - 4:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>4:00 PM - 5:00 PM</td><td class="available">Available</td></tr>
-                                    </table>
-                                </div>
-
-                                <div class="lab-block">
-                                    <h5>Lab. 528</h5>
-                                    <table class="schedule-table">
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Status</th>
-                                        </tr>
-                                        <tr><td>10:00 AM - 11:00 AM</td><td class="available">Available</td></tr>
-                                        <tr><td>11:00 AM - 12:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>12:00 PM - 1:00 PM</td><td class="lunch">Lunch Break</td></tr>
-                                        <tr><td>1:00 PM - 2:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>2:00 PM - 3:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>3:00 PM - 4:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>4:00 PM - 5:00 PM</td><td class="available">Available</td></tr>
-                                    </table>
-                                </div>
-
-                                <div class="lab-block">
-                                    <h5>Lab. 530</h5>
-                                    <table class="schedule-table">
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Status</th>
-                                        </tr>
-                                        <tr><td>10:00 AM - 11:00 AM</td><td class="available">Available</td></tr>
-                                        <tr><td>11:00 AM - 12:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>12:00 PM - 1:00 PM</td><td class="lunch">Lunch Break</td></tr>
-                                        <tr><td>1:00 PM - 2:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>2:00 PM - 3:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>3:00 PM - 4:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>4:00 PM - 5:00 PM</td><td class="available">Available</td></tr>
-                                    </table>
-                                </div>
-
-                                <div class="lab-block">
-                                    <h5>Lab. 542</h5>
-                                    <table class="schedule-table">
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Status</th>
-                                        </tr>
-                                        <tr><td>10:00 AM - 11:00 AM</td><td class="available">Available</td></tr>
-                                        <tr><td>11:00 AM - 12:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>12:00 PM - 1:00 PM</td><td class="lunch">Lunch Break</td></tr>
-                                        <tr><td>1:00 PM - 2:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>2:00 PM - 3:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>3:00 PM - 4:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>4:00 PM - 5:00 PM</td><td class="available">Available</td></tr>
-                                    </table>
-                                </div>
-                                <div class="lab-block">
-                                    <h5>Lab. 544</h5>
-                                    <table class="schedule-table">
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Status</th>
-                                        </tr>
-                                        <tr><td>10:00 AM - 11:00 AM</td><td class="available">Available</td></tr>
-                                        <tr><td>11:00 AM - 12:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>12:00 PM - 1:00 PM</td><td class="lunch">Lunch Break</td></tr>
-                                        <tr><td>1:00 PM - 2:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>2:00 PM - 3:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>3:00 PM - 4:00 PM</td><td class="available">Available</td></tr>
-                                        <tr><td>4:00 PM - 5:00 PM</td><td class="available">Available</td></tr>
-                                    </table>
-                                </div>
                             </div>
                         </div>
 
@@ -154,10 +66,10 @@
                                     and the only exception is Prelim period.
                                 </li><br>
                                 <li>
-                                   Sit in will only be allowed 15 minutes after the class entered the laboratory
-                                   and with the permission of the instructor who will be conducting the class 
-                                   for no classes or vacant hours. Once the instructor is absent, the Laboratory supervisor
-                                   will decide if they allow the students to sit-in.
+                                Sit in will only be allowed 15 minutes after the class entered the laboratory
+                                and with the permission of the instructor who will be conducting the class 
+                                for no classes or vacant hours. Once the instructor is absent, the Laboratory supervisor
+                                will decide if they allow the students to sit-in.
                                 </li><br>
                                 <li>
                                     Approach the laboratory i-charge (Working Scholar or Laboratory Supervisor) and not the
@@ -185,9 +97,51 @@
                                 <p>We expect you to follow the above-mentioned rules accordingly.</p>
                             </ol>
                         </div>
+                        <div class="lab-schedules-section">
+                            <h2>Laboratory Schedules</h2>
+                            <div class="lab-selector">
+                                <select id="labSelector" onchange="showLabSchedule(this.value)">
+                                    <option value="">Select Laboratories</option>
+                                    <option value="all">All Laboratories</option>
+                                    <option value="Lab 517">Lab 517</option>
+                                    <option value="Lab 524">Lab 524</option>
+                                    <option value="Lab 526">Lab 526</option>
+                                    <option value="Lab 528">Lab 528</option>
+                                    <option value="Lab 530">Lab 530</option>
+                                    <option value="Lab 542">Lab 542</option>
+                                    <option value="Lab 544">Lab 544</option>
+                                </select>
+                                <button id="downloadScheduleBtn" onclick="downloadSchedule()">Download Schedule</button> <!-- Directly call downloadSchedule -->
+                            </div>
+                            
+                            <div id="scheduleDisplay" class="schedule-display">
+                                <table id="scheduleTable" style="display: none;">
+                                    <thead>
+                                        <tr>
+                                            <th>Laboratory</th> <!-- Added Laboratory column -->
+                                            <th>Date</th>
+                                            <th>Start Time</th>
+                                            <th>End Time</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for schedule in lab_schedules %}
+                                        <tr class="schedule-row" data-lab="{{ schedule[1] }}">
+                                            <td>{{ schedule[1] }}</td> <!-- Display Laboratory number -->
+                                            <td>{{ schedule[2] }}</td>
+                                            <td class="time-cell">{{ schedule[3] }}</td>
+                                            <td class="time-cell">{{ schedule[4] }}</td>
+                                            <td>{{ schedule[5] }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <p id="noScheduleMessage" class="no-schedule-message">Select a laboratory to view its schedule.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
         </div>
     </div>
     <script>
@@ -228,6 +182,137 @@
             console.error('Error:', error);
             eventSource.close();
         };
-    </script>
+
+        function showLabSchedule(lab) {
+        const table = document.getElementById('scheduleTable');
+        const message = document.getElementById('noScheduleMessage');
+        const rows = document.getElementsByClassName('schedule-row');
+        
+        if (!lab) {
+            table.style.display = 'none';
+            message.textContent = 'Select a laboratory to view its schedule.';
+            message.style.display = 'block';
+            return;
+        }
+        
+        let hasSchedules = false;
+        for (let row of rows) {
+            if (row.dataset.lab === lab) {
+                row.style.display = 'table-row';
+                hasSchedules = true;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+        
+        if (hasSchedules) {
+            table.style.display = 'table';
+            message.style.display = 'none';
+        } else {
+            table.style.display = 'none';
+            message.textContent = 'No schedules available for this laboratory.';
+            message.style.display = 'block';
+        }
+    }
+    function formatTime(timeStr) {
+        const [hours, minutes] = timeStr.split(':');
+        let hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12;
+        hour = hour ? hour : 12; // Convert 0 to 12
+        return `${hour}:${minutes} ${ampm}`;
+    }
+
+    // Convert times when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const timeCells = document.querySelectorAll('.time-cell');
+        timeCells.forEach(cell => {
+            cell.textContent = formatTime(cell.textContent.trim());
+        });
+    });
+    function showLabSchedule(lab) {
+    const table = document.getElementById('scheduleTable');
+    const message = document.getElementById('noScheduleMessage');
+    const rows = document.getElementsByClassName('schedule-row');
+    
+    if (!lab) {
+        table.style.display = 'none';
+        message.textContent = 'Select a laboratory to view its schedule.';
+        message.style.display = 'block';
+        return;
+    }
+    
+    let hasSchedules = false;
+    for (let row of rows) {
+        if (lab === 'all' || row.dataset.lab === lab) {
+            row.style.display = 'table-row';
+            hasSchedules = true;
+        } else {
+            row.style.display = 'none';
+        }
+    }
+    
+    if (hasSchedules) {
+        table.style.display = 'table';
+        message.style.display = 'none';
+    } else {
+        table.style.display = 'none';
+        message.textContent = 'No schedules available for this laboratory.';
+        message.style.display = 'block';
+    }
+}
+
+function downloadSchedule() {
+    const selectedLab = document.getElementById('labSelector').value;
+    const rows = Array.from(document.querySelectorAll('.schedule-row'))
+        .filter(row => selectedLab === 'all' || row.dataset.lab === selectedLab)
+        .map(row => ({
+            lab: row.dataset.lab,
+            date: row.cells[0].textContent,
+            startTime: row.cells[1].textContent,
+            endTime: row.cells[2].textContent,
+            description: row.cells[3].textContent
+        }));
+
+    const docContent = `
+        <h1>University of Cebu Main Campus</h1>
+        <h2>College of Computer Studies</h2>
+        <h3>Sit in Monitoring System</h3>
+        <p>Laboratory Schedules</p>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Laboratory</th>
+                    <th>Date</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows.map(row => `
+                    <tr>
+                        <td>${row.lab}</td>
+                        <td>${row.date}</td>
+                        <td>${row.startTime}</td>
+                        <td>${row.endTime}</td>
+                        <td>${row.description}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+    pdf.fromHTML(docContent, 15, 15);
+    pdf.save('Laboratory_Schedules.pdf');
+}
+
+function toggleFormatSelection() {
+    const formatSelection = document.getElementById('formatSelection');
+    formatSelection.style.display = formatSelection.style.display === 'none' ? 'block' : 'none';
+}
+</script>
 </body>
 </html>

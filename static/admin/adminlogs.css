@@ -189,14 +189,18 @@ td {
     text-align: center;
 }
 
-.action-buttons {
-    display: flex;
-    gap: 8px;
-}
-
 /*TABLE*/
 
-/* Sidebar Styles */
+/* Status Colors */
+.status-accepted {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.status-rejected {
+    color: #dc3545;
+    font-weight: 500;
+}
 
 /* Main Content Styles */
 .main-content {
@@ -227,8 +231,6 @@ td {
     width: 95%;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
-
-
 
 /* Responsive Design */
 @media (max-width: 1024px) {

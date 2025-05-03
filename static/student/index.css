@@ -297,40 +297,6 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.lab-block {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-}
-
-.schedule-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 14px;
-}
-
-.schedule-table th,
-.schedule-table td {
-    padding: 8px;
-    border: 1px solid #ddd;
-    text-align: left;
-}
-
-.schedule-table th {
-    background-color: #603A75;
-    color: white;
-}
-
-.available {
-    color: #28a745;
-}
-
-.lunch {
-    color: #dc3545;
-    font-style: italic;
-}
-
 h4 {
     color: #603A75;
     margin-bottom: 15px;
@@ -341,20 +307,87 @@ h5 {
     margin-bottom: 10px;
 }
 
-
-.schedule-section {
-    flex: 1;
-    background: #fff;
+.lab-schedules-section {
+    background: white;
+    border-radius: 8px;
     padding: 20px;
-    border-radius: 10px;
+    margin: 20px 0;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.lab-schedules {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    margin-top: 20px;
+.lab-schedules-section h2 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+.lab-selector {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.lab-selector select {
+    width: 200px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.download-options {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+#downloadScheduleBtn {
+    background-color: #603A75;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+#downloadScheduleBtn:hover {
+    background-color: #4c2e5d;
+}
+
+.schedule-display {
+    overflow-x: auto;
+}
+
+#scheduleTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+#scheduleTable th,
+#scheduleTable td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+#scheduleTable th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+#scheduleTable tr:hover {
+    background-color: #f5f5f5;
+}
+
+.no-schedule-message {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+    font-style: italic;
 }
 
 .content-sections {
@@ -405,6 +438,33 @@ h5 {
     color: #666;
     font-size: 0.75em;
     margin-top: 5px;
+}
+
+.reserve-btn {
+    background-color: #603A75;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background-color 0.3s;
+}
+
+.reserve-btn:hover {
+    background-color: #4c2e5d;
+}
+
+.reserve-btn i {
+    font-size: 12px;
+}
+
+#scheduleTable th:last-child,
+#scheduleTable td:last-child {
+    text-align: center;
 }
 
 @media (max-width: 1024px) {
