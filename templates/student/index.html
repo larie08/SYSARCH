@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='student/index.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -111,7 +112,11 @@
                                     <option value="Lab 542">Lab 542</option>
                                     <option value="Lab 544">Lab 544</option>
                                 </select>
-                                <button id="downloadScheduleBtn" onclick="downloadSchedule()">Download Schedule</button> <!-- Directly call downloadSchedule -->
+                                <div class="button-group">
+                                    <a href="{{ url_for('download_lab_schedule_pdf') }}" class="download-pdf-btn">
+                                        <i class="fas fa-file-pdf"></i> Download Schedule (PDF)
+                                    </a>
+                                </div>
                             </div>
                             
                             <div id="scheduleDisplay" class="schedule-display">
@@ -183,6 +188,22 @@
             eventSource.close();
         };
 
+        function formatTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':');
+            let hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12;
+            hour = hour ? hour : 12; // Convert 0 to 12
+            return `${hour}:${minutes} ${ampm}`;
+        }
+
+        // Convert times when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const timeCells = document.querySelectorAll('.time-cell');
+            timeCells.forEach(cell => {
+                cell.textContent = formatTime(cell.textContent.trim());
+            });
+        });
         function showLabSchedule(lab) {
         const table = document.getElementById('scheduleTable');
         const message = document.getElementById('noScheduleMessage');
@@ -197,7 +218,7 @@
         
         let hasSchedules = false;
         for (let row of rows) {
-            if (row.dataset.lab === lab) {
+            if (lab === 'all' || row.dataset.lab === lab) {
                 row.style.display = 'table-row';
                 hasSchedules = true;
             } else {
@@ -214,105 +235,6 @@
             message.style.display = 'block';
         }
     }
-    function formatTime(timeStr) {
-        const [hours, minutes] = timeStr.split(':');
-        let hour = parseInt(hours);
-        const ampm = hour >= 12 ? 'PM' : 'AM';
-        hour = hour % 12;
-        hour = hour ? hour : 12; // Convert 0 to 12
-        return `${hour}:${minutes} ${ampm}`;
-    }
-
-    // Convert times when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        const timeCells = document.querySelectorAll('.time-cell');
-        timeCells.forEach(cell => {
-            cell.textContent = formatTime(cell.textContent.trim());
-        });
-    });
-    function showLabSchedule(lab) {
-    const table = document.getElementById('scheduleTable');
-    const message = document.getElementById('noScheduleMessage');
-    const rows = document.getElementsByClassName('schedule-row');
-    
-    if (!lab) {
-        table.style.display = 'none';
-        message.textContent = 'Select a laboratory to view its schedule.';
-        message.style.display = 'block';
-        return;
-    }
-    
-    let hasSchedules = false;
-    for (let row of rows) {
-        if (lab === 'all' || row.dataset.lab === lab) {
-            row.style.display = 'table-row';
-            hasSchedules = true;
-        } else {
-            row.style.display = 'none';
-        }
-    }
-    
-    if (hasSchedules) {
-        table.style.display = 'table';
-        message.style.display = 'none';
-    } else {
-        table.style.display = 'none';
-        message.textContent = 'No schedules available for this laboratory.';
-        message.style.display = 'block';
-    }
-}
-
-function downloadSchedule() {
-    const selectedLab = document.getElementById('labSelector').value;
-    const rows = Array.from(document.querySelectorAll('.schedule-row'))
-        .filter(row => selectedLab === 'all' || row.dataset.lab === selectedLab)
-        .map(row => ({
-            lab: row.dataset.lab,
-            date: row.cells[0].textContent,
-            startTime: row.cells[1].textContent,
-            endTime: row.cells[2].textContent,
-            description: row.cells[3].textContent
-        }));
-
-    const docContent = `
-        <h1>University of Cebu Main Campus</h1>
-        <h2>College of Computer Studies</h2>
-        <h3>Sit in Monitoring System</h3>
-        <p>Laboratory Schedules</p>
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>Laboratory</th>
-                    <th>Date</th>
-                    <th>Start Time</th>
-                    <th>End Time</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${rows.map(row => `
-                    <tr>
-                        <td>${row.lab}</td>
-                        <td>${row.date}</td>
-                        <td>${row.startTime}</td>
-                        <td>${row.endTime}</td>
-                        <td>${row.description}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF();
-    pdf.fromHTML(docContent, 15, 15);
-    pdf.save('Laboratory_Schedules.pdf');
-}
-
-function toggleFormatSelection() {
-    const formatSelection = document.getElementById('formatSelection');
-    formatSelection.style.display = formatSelection.style.display === 'none' ? 'block' : 'none';
-}
 </script>
 </body>
 </html>

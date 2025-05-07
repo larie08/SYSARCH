@@ -12,6 +12,8 @@ import os
 import time
 from werkzeug.utils import secure_filename
 
+RESOURCE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'resources')
+
 def connect_db():
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row 
@@ -74,6 +76,20 @@ def create_tables():
                 date TEXT,
                 FOREIGN KEY (student_id) REFERENCES users (idno),
                 FOREIGN KEY (reservation_id) REFERENCES reservations (id)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS resources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                folder_name TEXT NOT NULL,
+                name TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_type TEXT,
+                file_size INTEGER,
+                uploaded_by TEXT,
+                is_active INTEGER DEFAULT 1,
+                upload_date DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
@@ -201,6 +217,144 @@ def process_registration(user_data, course):
         print(f"Registration processing error: {e}")
         return False, None, str(e)
 # student register end
+
+
+# student lab resources start
+def get_resource_folders():
+    """Get all available resource folders"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT folder_name 
+                FROM resources 
+                WHERE is_active = 1
+                GROUP BY folder_name
+                HAVING COUNT(*) > 0
+            """)
+            return [{'name': folder[0]} for folder in cursor.fetchall()]
+    except Exception as e:
+        print(f"Database error in get_resource_folders: {e}")
+        return []
+
+def save_resource_file(folder_name, file_name, file_path, file_type, file_size, uploaded_by):
+    """Save resource file information to database"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO resources (folder_name, name, file_path, file_type, file_size, uploaded_by, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            """, (folder_name, file_name, file_path, file_type, file_size, uploaded_by))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Database error in save_resource_file: {e}")
+        return False
+
+def get_resource_files(folder_name):
+    """Get files for a specific resource folder"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT name, file_path, file_type, file_size, upload_date
+                FROM resources
+                WHERE folder_name = ? AND is_active = 1
+                ORDER BY upload_date DESC
+            """, (folder_name,))
+            
+            files = cursor.fetchall()
+            return [{
+                'name': file[0],
+                'path': file[1],
+                'type': file[2],
+                'size': file[3],
+                'date': file[4]
+            } for file in files]
+    except Exception as e:
+        print(f"Error getting resource files: {e}")
+        return []
+# student lab resources end
+
+# student lab purpose start 
+def get_student_purposes(student_id):
+    """Get unique purposes from student's sit-in history"""
+    try:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        
+        # First get the completed purposes for this student
+        cursor.execute("""
+            SELECT DISTINCT purpose 
+            FROM reservations 
+            WHERE idno = ? 
+            AND status = 'Completed'
+        """, (student_id,))
+        
+        completed_purposes = [row[0] for row in cursor.fetchall()]
+        
+        # Map the purposes to their corresponding folder names
+        purpose_mapping = {
+            'C': 'C Programming',
+            'C#': 'C# Programming',
+            'Java': 'Java Programming',
+            'Python': 'Python Programming',
+            'Database': 'Database',
+            'Digital Logic & Design': 'Digital Logic & Design',
+            'Embedded Designs & IOT': 'Embedded Systems & IoT',
+            'System Integration & Architecture': 'System Integration & Archi',
+            'Computer Application': 'Computer Application',
+            'Project Management': 'Project Management',
+            'IT Trends': 'IT Trends',
+            'Technopreneurship': 'Technopreneurship',
+            'Capstone': 'Capstone'
+        }
+        
+        # Get available resources from the database
+        cursor.execute("""
+            SELECT DISTINCT r.folder_name, r.name, r.file_path
+            FROM resources r
+            WHERE r.is_active = 1
+            AND r.folder_name IN (
+                SELECT folder_name FROM resources
+                WHERE folder_name IS NOT NULL
+            )
+        """)
+        available_resources = cursor.fetchall()
+        
+        # Create a dictionary to store folder contents
+        folder_contents = {}
+        for resource in available_resources:
+            folder_name = resource[0]
+            if folder_name not in folder_contents:
+                folder_contents[folder_name] = []
+            folder_contents[folder_name].append({
+                'name': resource[1],
+                'path': resource[2]
+            })
+        
+        # Filter and map the purposes
+        available_purposes = []
+        for purpose in completed_purposes:
+            if purpose in purpose_mapping:
+                folder_name = purpose_mapping[purpose]
+                if folder_name in folder_contents:
+                    available_purposes.append({
+                        'name': purpose,
+                        'folder': folder_name,
+                        'files': folder_contents[folder_name]
+                    })
+        
+        return available_purposes
+        
+    except Exception as e:
+        print(f"Database error in get_student_purposes: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+# student lab purpose end
 
 # student user start       
 def check_user(username, password):
@@ -484,25 +638,68 @@ def get_student_announcements():
 
 # student laboratory resources start
 def get_student_resources(student_id):
+    """Get available resources based on student's completed sit-ins"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # Get student's completed purposes
+            cursor.execute("""
+                SELECT DISTINCT purpose 
+                FROM reservations 
+                WHERE idno = ? AND status = 'Completed'
+            """, (student_id,))
+            
+            completed_purposes = [row[0] for row in cursor.fetchall()]
+            
+            # Get resources for completed purposes
+            resources = []
+            for purpose in completed_purposes:
+                cursor.execute("""
+                    SELECT 
+                        id,
+                        folder_name,
+                        name,
+                        file_path,
+                        file_type,
+                        upload_date
+                    FROM resources
+                    WHERE folder_name = ? AND is_active = 1
+                    ORDER BY upload_date DESC
+                """, (purpose,))
+                
+                files = cursor.fetchall()
+                if files:
+                    resources.append({
+                        'purpose': purpose,
+                        'files': [{
+                            'id': f[0],
+                            'name': f[2],
+                            'type': f[4],
+                            'upload_date': f[5],
+                            'download_path': f[3]
+                        } for f in files]
+                    })
+            
+            return resources
+    except Exception as e:
+        print(f"Error getting student resources: {e}")
+        return []
+
+def get_resource_file(file_id):
+    """Get file information for download"""
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT DISTINCT purpose 
-                FROM reservations 
-                WHERE idno = ? 
-                AND status = 'Completed'
-                AND purpose IS NOT NULL
-            """, (student_id,))
-            used_purposes = [row[0] for row in cursor.fetchall()]
-            
-            return [{
-                'name': purpose,
-                'status': 'Active'
-            } for purpose in used_purposes]
+                SELECT name, file_path, file_type
+                FROM resources
+                WHERE id = ? AND is_active = 1
+            """, (file_id,))
+            return cursor.fetchone()
     except Exception as e:
-        print(f"Error fetching student resources: {e}")
-        return []
+        print(f"Error getting resource file: {e}")
+        return None
 
 def check_resource_access(student_id, resource_name):
     try:
@@ -545,61 +742,49 @@ def get_lab_computers(lab):
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             
-            # Get computers that are currently in use
+            # Create table if not exists
             cursor.execute("""
-                SELECT computer_number 
-                FROM reservations 
-                WHERE lab = ? AND status = 'Active'
-            """, (lab,))
-            used_computers = [row[0] for row in cursor.fetchall()]
+                CREATE TABLE IF NOT EXISTS lab_computers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lab TEXT NOT NULL,
+                    computer_number INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'available',
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(lab, computer_number)
+                )
+            """)
             
-            # Get computers under maintenance
+            # Get all computers for the lab
             cursor.execute("""
-                SELECT computer_number 
-                FROM lab_computers 
-                WHERE lab = ? AND status = 'maintenance'
+                SELECT computer_number, status
+                FROM lab_computers
+                WHERE lab = ?
+                ORDER BY computer_number
             """, (lab,))
-            maintenance_computers = [row[0] for row in cursor.fetchall()]
             
-            computers = []
-            for i in range(1, 51):
-                status = 'active'  # default status
-                if i in used_computers:
-                    status = 'used'
-                elif i in maintenance_computers:
-                    status = 'maintenance'
-                    
-                computers.append({
-                    'id': i,
-                    'status': status
-                })
-                
-            return computers
+            computers = cursor.fetchall()
+            return [{'id': comp[0], 'status': comp[1]} for comp in computers]
+            
     except Exception as e:
-        print(f"Error getting lab computers: {e}")
+        print(f"Error fetching lab computers: {e}")
         return []
 
-def get_active_lab_computers(lab):
-    with sqlite3.connect("users.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT computer_number 
-            FROM reservations 
-            WHERE laboratory = ? 
-            AND status = 'active'
-        """, (lab,))
-        return [row[0] for row in cursor.fetchall()]
-
-def get_maintenance_computers(lab):
-    with sqlite3.connect("users.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT computer_number 
-            FROM lab_computers 
-            WHERE laboratory = ? 
-            AND status = 'maintenance'
-        """, (lab,))
-        return [row[0] for row in cursor.fetchall()]
+def is_computer_available(lab, computer_number):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT status 
+                FROM lab_computers 
+                WHERE lab = ? AND computer_number = ?
+            """, (lab, computer_number))
+            
+            result = cursor.fetchone()
+            return result[0] == 'available' if result else True
+            
+    except Exception as e:
+        print(f"Error checking computer availability: {e}")
+        return False
 
 # student reservation end
 
@@ -1570,18 +1755,25 @@ def logout_student_session(student_id):
 # admin logout student end
 
 # admin computer control start
-def update_computer_status(lab, computer_id, new_status):
-    """Update the status of a specific computer in a lab."""
+def update_multiple_computer_status(lab, computer_ids, status):
+    """Update the status of multiple computers in a lab."""
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE lab_computers
-                SET status = ?
-                WHERE lab = ? AND computer_number = ?
-            """, (new_status, lab, computer_id))
+            
+            # Update each computer's status
+            for computer_id in computer_ids:
+                cursor.execute("""
+                    INSERT INTO lab_computers (lab, computer_number, status)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(lab, computer_number) 
+                    DO UPDATE SET 
+                        status = excluded.status
+                """, (lab, computer_id, status))
+            
             conn.commit()
             return True
+            
     except Exception as e:
         print(f"Error updating computer status: {e}")
         return False
@@ -1790,6 +1982,34 @@ def get_all_feedbacks():
 # admin feedback end
 
 # admin lab resources start
+def get_resources(self, folder_name):
+    try:
+        cursor = self.conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT name, file_path, upload_date 
+            FROM resources 
+            WHERE folder = %s
+            ORDER BY upload_date DESC
+        """, (folder_name,))
+        return cursor.fetchall()
+    except Exception as e:
+        print(f"Error getting resources: {e}")
+        return []
+
+def save_resource(self, folder, filename, file_path):
+    try:
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO resources (folder, name, file_path, upload_date)
+            VALUES (%s, %s, %s, NOW())
+        """, (folder, filename, file_path))
+        self.conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error saving resource: {e}")
+        self.conn.rollback()
+        return False
+        
 def add_lab_resource(lab_name, pc_count, status, description):
     try:
         with sqlite3.connect("users.db") as conn:
@@ -1847,15 +2067,15 @@ def update_lab_resource(resource_id, lab_name, pc_count, status, description):
         print(f"Error updating lab resource: {e}")
         return False
 
-def delete_lab_resource(resource_id):
+def delete_resource_file(self, folder, filename):
     try:
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM lab_resources WHERE resource_id = ?", (resource_id,))
-            conn.commit()
-            return True
+        query = "DELETE FROM resources WHERE folder = %s AND filename = %s"
+        self.cursor.execute(query, (folder, filename))
+        self.conn.commit()
+        return True
     except Exception as e:
-        print(f"Error deleting lab resource: {e}")
+        print(f"Error deleting resource file: {e}")
+        self.conn.rollback()
         return False
 # admin lab resources end
 
@@ -2136,6 +2356,22 @@ def export_to_pdf(records):
 
 
 #debug purposes
+def add_test_resource():
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO resources (folder_name, name, file_path, file_type, is_active)
+                VALUES 
+                ('IT Trends', 'Sample.pdf', 'path/to/sample.pdf', 'pdf', 1),
+                ('Java Programming', 'Example.java', 'path/to/example.java', 'java', 1)
+            """)
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error adding test resource: {e}")
+        return False
+
 def cleanup_orphaned_sitins():
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()

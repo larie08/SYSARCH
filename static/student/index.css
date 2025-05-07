@@ -336,10 +336,33 @@ h5 {
     font-size: 14px;
 }
 
-.download-options {
-    display: flex;
-    justify-content: flex-end;
+.download-pdf-btn {
+    background-color: #603A75;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
     align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.download-pdf-btn:hover {
+    background-color: #45a049;
+}
+
+.download-pdf-btn i {
+    font-size: 16px;
+}
+
+.lab-selector {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
 }
 
 #downloadScheduleBtn {

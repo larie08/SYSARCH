@@ -86,7 +86,6 @@
                         <h2 id="resourceFolderName">Folder Name</h2>
                         <div class="modal-actions">
                             <button class="add-file-btn"><i class="fas fa-plus"></i></button>
-                            <button class="download-btn"><i class="fas fa-download"></i></button>
                             <button class="delete-btn"><i class="fas fa-trash"></i></button>
                             <button class="close-modal">&times;</button>
                         </div>
@@ -157,30 +156,6 @@
         input.click();
     });
 
-    // Download button functionality
-    document.querySelector('.download-btn').addEventListener('click', async () => {
-        const folderName = document.getElementById('resourceFolderName').textContent;
-        try {
-            const response = await fetch(`/admin/download-resources/${folderName}`);
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${folderName}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            } else {
-                alert('Download failed');
-            }
-        } catch (error) {
-            console.error('Download error:', error);
-            alert('Download failed!');
-        }
-    });
-
         // Show/Hide Upload Modal
             const addResourceBtn = document.querySelector('.add-resource-btn');
             const uploadModal = document.getElementById('uploadModal');
@@ -225,26 +200,13 @@
                 loadFolderFiles(folderName);
             }
 
-            // Load Folder Files
-            async function loadFolderFiles(folderName) {
-                try {
-                    const response = await fetch(`/admin/get-resources/${folderName}`);
-                    const files = await response.json();
-                    
-                    const filesGrid = document.getElementById('filesGrid');
-                    filesGrid.innerHTML = files.map(file => `
-                        <div class="file-item" data-filename="${file.name}" onclick="handleFileClick(this, '${folderName}', '${file.name}')">
-                            <i class="fas fa-file fa-2x"></i>
-                            <p>${file.name}</p>
-                        </div>
-                    `).join('');
-                } catch (error) {
-                    console.error('Error loading files:', error);
-                }
-            }
-
-            // Initialize
+            // // Initialize
             document.addEventListener('DOMContentLoaded', loadResources);
+
+            document.querySelector('.delete-btn').addEventListener('click', () => {
+            const folderName = document.getElementById('resourceFolderName').textContent;
+            deleteSelectedFiles(folderName);
+        });
 
     // Initial load of file lists
     document.addEventListener('DOMContentLoaded', () => {
@@ -269,10 +231,87 @@ function toggleFileSelection(fileElement, fileName) {
     updateDeleteButtonState();
 }
 
+async function deleteSelectedFiles(folder) {
+    if (selectedFiles.size === 0) {
+        alert('Please select files to delete');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to delete the selected files?')) return;
+    
+    try {
+        const failedFiles = [];
+        
+        for (const fileName of selectedFiles) {
+            try {
+                const response = await fetch('/admin/delete-resource', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        folder: folder,
+                        filename: fileName
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    failedFiles.push(fileName);
+                    console.error(`Failed to delete ${fileName}: ${result.error}`);
+                }
+            } catch (err) {
+                failedFiles.push(fileName);
+                console.error(`Error deleting ${fileName}:`, err);
+            }
+        }
+        
+        // Refresh file list regardless of errors
+        await loadFolderFiles(folder);
+        selectedFiles.clear();
+        updateDeleteButtonState();
+        
+        // Show appropriate message
+        if (failedFiles.length > 0) {
+            alert(`Failed to delete the following files:\n${failedFiles.join('\n')}`);
+        } else {
+            alert('All selected files were deleted successfully!');
+        }
+        
+    } catch (error) {
+        console.error('Error in deletion process:', error);
+        alert('An error occurred while deleting files.');
+    }
+}
+
+function toggleFileSelection(fileElement, fileName) {
+    event.preventDefault(); // Prevent any default behavior
+    
+    if (event.target.tagName.toLowerCase() === 'i' || event.target.tagName.toLowerCase() === 'p') {
+        return; // Don't toggle selection when clicking icon or filename
+    }
+    
+    fileElement.classList.toggle('selected');
+    if (selectedFiles.has(fileName)) {
+        selectedFiles.delete(fileName);
+    } else {
+        selectedFiles.add(fileName);
+    }
+    updateDeleteButtonState();
+}
+
 function updateDeleteButtonState() {
     const deleteBtn = document.querySelector('.delete-btn');
     deleteBtn.disabled = selectedFiles.size === 0;
     deleteBtn.style.opacity = selectedFiles.size === 0 ? '0.6' : '1';
+}
+
+function handleFileClick(element, folderName, fileName) {
+    event.stopPropagation(); // Prevent triggering selection when previewing
+    previewFile(folderName, fileName);
 }
 
 function previewFile(folder, fileName) {
@@ -303,35 +342,23 @@ function previewFile(folder, fileName) {
 }
 
 // Delete selected files
-async function deleteSelectedFiles(folder) {
-    if (selectedFiles.size === 0) return;
-    
-    if (!confirm('Are you sure you want to delete the selected files?')) return;
-    
-    for (const fileName of selectedFiles) {
-        try {
-            const response = await fetch('/admin/delete-resource-file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    folder: folder,
-                    filename: fileName
-                })
-            });
-            
-            if (response.ok) {
-                const fileElement = document.querySelector(`[data-filename="${fileName}"]`);
-                if (fileElement) fileElement.remove();
-            }
-        } catch (error) {
-            console.error('Error deleting file:', error);
-        }
+async function loadFolderFiles(folderName) {
+    try {
+        const response = await fetch(`/admin/get-resources/${folderName}`);
+        const files = await response.json();
+        
+        const filesGrid = document.getElementById('filesGrid');
+        filesGrid.innerHTML = files.map(file => `
+            <div class="file-item" data-filename="${file.name}" 
+                onclick="toggleFileSelection(this, '${file.name}')"
+                ondblclick="handleFileClick(this, '${folderName}', '${file.name}')">
+                <i class="fas fa-file fa-2x"></i>
+                <p>${file.name}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading files:', error);
     }
-    
-    selectedFiles.clear();
-    updateDeleteButtonState();
 }
 
 // Close modal when clicking outside
@@ -346,32 +373,62 @@ window.onclick = function(event) {
 document.querySelector('.close-preview').onclick = function() {
     document.getElementById('filePreviewModal').style.display = 'none';
 }
-    </script>
 
-    <!-- Add this after the existing modals -->
-    <div class="file-preview-modal" id="filePreviewModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="previewFileName"></h2>
-                <span class="close-preview">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div id="filePreviewContent"></div>
-            </div>
-        </div>
-    </div>
+// Update the handleFileClick function
+async function handleFileClick(element, folderName, fileName) {
+    const modal = document.getElementById('filePreviewModal');
+    const previewContent = document.getElementById('filePreviewContent');
+    const fileNameElement = document.getElementById('previewFileName');
     
-    <!-- Update the loadFolderFiles function in your script section -->
-    <script>
-        // ... existing code ...
+    fileNameElement.textContent = fileName;
+    modal.style.display = 'block';
     
-        // Update delete button click handler
-        document.querySelector('.delete-btn').addEventListener('click', async () => {
-            const folderName = document.getElementById('resourceFolderName').textContent;
-            await deleteSelectedFiles(folderName);
-            loadFolderFiles(folderName); // Refresh the file list after deletion
-        });
-    </script>
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    const filePath = `/static/resources/${folderName}/${fileName}`;
+    
+    try {
+        if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
+            // Image preview
+            previewContent.innerHTML = `
+                <div class="preview-image-container">
+                    <img src="${filePath}" alt="${fileName}">
+                </div>`;
+        } else if (fileExtension === 'pdf') {
+            // PDF preview
+            previewContent.innerHTML = `
+                <iframe src="${filePath}" type="application/pdf" width="100%" height="100%" frameborder="0"></iframe>`;
+        } else if (['txt', 'csv', 'js', 'py', 'html', 'css', 'json', 'md'].includes(fileExtension)) {
+            // Text file preview
+            const response = await fetch(filePath);
+            const text = await response.text();
+            previewContent.innerHTML = `
+                <div class="preview-text-container">
+                    <pre><code>${text}</code></pre>
+                </div>`;
+        } else if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(fileExtension)) {
+            // Office documents preview using Google Docs Viewer
+            const encodedPath = encodeURIComponent(window.location.origin + filePath);
+            previewContent.innerHTML = `
+                <iframe src="https://docs.google.com/viewer?url=${encodedPath}&embedded=true" 
+                        width="100%" height="600px" frameborder="0"></iframe>`;
+        } else {
+            // Unsupported file type
+            previewContent.innerHTML = `
+                <div class="preview-unsupported">
+                    <i class="fas fa-file fa-3x"></i>
+                    <p>This file type cannot be previewed directly.</p>
+                </div>`;
+        }
+    } catch (error) {
+        console.error('Error previewing file:', error);
+        previewContent.innerHTML = `
+            <div class="preview-error">
+                <i class="fas fa-exclamation-circle fa-3x"></i>
+                <p>Error loading file preview</p>
+            </div>`;
+    }
+}
+</script>
 </body>
 </html>
 

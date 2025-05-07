@@ -19,12 +19,15 @@ app.secret_key = 'tonifowlersupersecretkey'
 
 DATABASE_URL = os.environ.get('POSTGRES_URL', 'postgresql://user:password@localhost:5432/rubi_sysarch')
 
-UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 RESOURCE_FOLDER = os.path.join(app.static_folder, 'resources')
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'resources')
+
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  
+
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'resources')
 
 with app.app_context():
     create_tables()
@@ -253,6 +256,25 @@ def admin_computer_control():
     
     return render_template('admin/admincomputer.html', computers=all_computers)
 
+@app.route('/admin/update_computer_status', methods=['POST'])
+def update_computer_status_route():
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    lab = data.get('lab')
+    computers = data.get('computers')
+    status = data.get('status')
+    
+    if not all([lab, computers, status]):
+        return jsonify({'success': False, 'message': 'Missing required data'}), 400
+    
+    success = update_multiple_computer_status(lab, computers, status)
+    
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': 'Failed to update status'})
+
 @app.route('/admin/resources/edit/<int:resource_id>', methods=['GET', 'POST'])
 def edit_resource(resource_id):
     if 'admin_id' not in session:
@@ -328,9 +350,9 @@ def delete_lab_schedule_route(schedule_id):
     
     return redirect(url_for('admin_lab_schedules'))
 
-@app.route('/admin/download_lab_schedule_pdf')
+@app.route('/download_lab_schedule_pdf')
 def download_lab_schedule_pdf():
-    if 'admin_id' not in session:
+    if 'admin_id' not in session and 'username' not in session:
         return redirect(url_for('login'))
     
     # Get all lab schedules
@@ -581,36 +603,6 @@ def admin_records():
                          purpose_counts=purpose_counts,
                          lab_counts=lab_counts)
 
-@app.route('/admin/upload-resource', methods=['POST'])
-def upload_resource():
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    folder = request.form.get('folder')
-    files = request.files.getlist('files[]')
-    
-    if not folder:
-        return jsonify({'error': 'No folder specified'}), 400
-    
-    folder_path = os.path.join(RESOURCE_FOLDER, folder)
-    os.makedirs(folder_path, exist_ok=True)
-    
-    uploaded_files = []
-    try:
-        for file in files:
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                file_path = os.path.join(folder_path, filename)
-                file.save(file_path)
-                uploaded_files.append(filename)
-        
-        return jsonify({
-            'success': True,
-            'files': uploaded_files
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/admin/get-resources/<folder>')
 def get_resources(folder):
     if 'admin_id' not in session:
@@ -634,8 +626,41 @@ def get_resources(folder):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/admin/delete-resource-file', methods=['POST'])
-def delete_resource_file():
+@app.route('/admin/upload-resource', methods=['POST'])
+def upload_resource():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    if 'files[]' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    folder = request.form.get('folder')
+    if not folder:
+        return jsonify({'error': 'No folder specified'}), 400
+    
+    folder_path = os.path.join(RESOURCE_FOLDER, folder)
+    os.makedirs(folder_path, exist_ok=True)
+    
+    files = request.files.getlist('files[]')
+    uploaded_files = []
+    
+    try:
+        for file in files:
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(folder_path, filename)
+                file.save(file_path)
+                uploaded_files.append(filename)
+        
+        return jsonify({
+            'success': True,
+            'files': uploaded_files
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/delete-resource', methods=['POST'])
+def delete_resource_file():  # <-- Renamed to avoid conflict
     if 'admin_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
@@ -646,7 +671,10 @@ def delete_resource_file():
     if not folder or not filename:
         return jsonify({'error': 'Folder and filename are required'}), 400
     
-    file_path = os.path.join(RESOURCE_FOLDER, folder, filename)
+    # Handle spaces and special characters in folder names
+    folder = folder.replace(' ', '_')
+    safe_filename = secure_filename(filename)
+    file_path = os.path.join(RESOURCE_FOLDER, folder, safe_filename)
     
     try:
         if os.path.exists(file_path):
@@ -657,73 +685,43 @@ def delete_resource_file():
             })
         return jsonify({'error': 'File not found'}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/admin/download-resources/<folder>', methods=['GET'])
-def download_resources(folder):
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    folder_path = os.path.join(RESOURCE_FOLDER, folder)
-    if not os.path.exists(folder_path):
-        return jsonify({'error': 'Folder not found'}), 404
-
-    try:
-        memory_file = io.BytesIO()
-        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for root, dirs, files in os.walk(folder_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arc_name = os.path.relpath(file_path, folder_path)
-                    zf.write(file_path, arc_name)
-
-        memory_file.seek(0)
-        return send_file(
-            memory_file,
-            mimetype='application/zip',
-            as_attachment=True,
-            download_name=f'{folder}_resources.zip'
-        )
-    except Exception as e:
+        print(f"Error deleting file: {str(e)}")  # For debugging
         return jsonify({'error': str(e)}), 500
 
 @app.route('/preview-resource/<folder>/<filename>')
 def preview_resource(folder, filename):
     if 'username' not in session and 'admin_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
-        
-    file_path = os.path.join(RESOURCE_FOLDER, folder, filename)
+    
+    # Sanitize the filename and create the full path
+    safe_filename = secure_filename(filename)
+    file_path = os.path.join(RESOURCE_FOLDER, folder, safe_filename)
+    
     if not os.path.exists(file_path):
         return jsonify({'error': 'File not found'}), 404
     
-    # Get file extension
-    file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-    
-    # Set appropriate MIME type
-    mime_types = {
-        'pdf': 'application/pdf',
-        'txt': 'text/plain',
-        'png': 'image/png',
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'gif': 'image/gif',
-        'doc': 'application/msword',
-        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'xls': 'application/vnd.ms-excel',
-        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'ppt': 'application/vnd.ms-powerpoint',
-        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    }
-    
-    mimetype = mime_types.get(file_ext, 'application/octet-stream')
-    
     try:
+        # Get the file's mime type
+        mime_type = None
+        file_ext = os.path.splitext(filename)[1].lower()
+        
+        if file_ext in ['.jpg', '.jpeg', '.png', '.gif']:
+            mime_type = f'image/{file_ext[1:]}'
+        elif file_ext == '.pdf':
+            mime_type = 'application/pdf'
+        elif file_ext in ['.txt', '.csv']:
+            mime_type = 'text/plain'
+        else:
+            mime_type = 'application/octet-stream'
+        
         return send_file(
             file_path,
-            mimetype=mimetype,
-            as_attachment=False
+            mimetype=mime_type,
+            as_attachment=False,
+            download_name=safe_filename
         )
     except Exception as e:
+        print(f"Preview error: {str(e)}")  # For debugging
         return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/logout_student', methods=['POST'])
@@ -934,39 +932,12 @@ def Session():
                          used_sessions=used_sessions)
 
 @app.route('/get-computers/<lab>')
-def get_computers(lab):
+def get_lab_computers_status(lab):
     if 'username' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
-    try:
-        # Get all active reservations for this lab
-        active_computers = get_active_lab_computers(lab)
-        
-        # Get maintenance status for computers
-        maintenance_computers = get_maintenance_computers(lab)
-        
-        computers = []
-        for i in range(1, 51):
-            status = 'active'  # default status
-            
-            # Check if computer is in use
-            if i in active_computers:
-                status = 'used'
-            
-            # Check if computer is under maintenance
-            if i in maintenance_computers:
-                status = 'maintenance'
-                
-            computers.append({
-                'id': i,
-                'name': f'PC {i}',
-                'status': status
-            })
-            
-        return jsonify(computers)
-    except Exception as e:
-        print(f"Error getting computers: {e}")
-        return jsonify({'error': str(e)}), 500
+    computers = get_lab_computers(lab)
+    return jsonify(computers)
 
 @app.route('/History')
 def History():

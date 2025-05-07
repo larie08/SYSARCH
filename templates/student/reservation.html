@@ -59,32 +59,45 @@
                                 </select>
                             
                                 <!-- Add after the computer-selection label and before the computer-list div -->
+                                <!-- Replace the computer selection div -->
                                 <div id="computerSelection" class="computer-selection" style="display: none;">
                                     <label for="computer">Computer Unit:</label>
                                     <input type="hidden" id="computer" name="computer" required>
-                                    <div class="filter-buttons">
-                                        <button type="button" class="filter-btn active" data-filter="all">All</button>
-                                        <button type="button" class="filter-btn" data-filter="available">Available</button>
-                                        <button type="button" class="filter-btn" data-filter="used">In Use</button>
-                                        <button type="button" class="filter-btn" data-filter="maintenance">Maintenance</button>
-                                    </div>
-                                    <div class="computer-list">
-                                        {% for i in range(1, 51) %}
-                                        <div class="computer-item" data-pc="{{ i }}" onclick="selectComputer(this)">
-                                            <span class="status-dot status-available"></span>
-                                            <span>PC {{ i }}</span>
+                                    
+                                    <div class="lab-layout">
+                                        <!-- Teacher's Area -->
+                                        <div class="teachers-area">
+                                            <div class="teacher-desk">
+                                                <i class="fas fa-chalkboard-teacher"></i>
+                                                <span>Teacher's Desk</span>
+                                            </div>
                                         </div>
-                                        {% endfor %}
-                                    </div>
-                                    <div class="status-legend">
-                                        <div class="legend-item">
-                                            <span class="status-dot status-available"></span> Available
-                                        </div>
-                                        <div class="legend-item">
-                                            <span class="status-dot status-used"></span> In Use
-                                        </div>
-                                        <div class="legend-item">
-                                            <span class="status-dot status-maintenance"></span> Maintenance
+                                
+                                        <!-- Computer Layout -->
+                                        <div class="computers-grid">
+                                            <div class="row-labels">
+                                                {% for row in range(1, 6) %}
+                                                <div class="row-label">Row {{ row }}</div>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="computer-rows">
+                                                {% for row in range(5) %}
+                                                <div class="computer-row">
+                                                    {% for col in range(10) %}
+                                                    {% set pc_number = row * 10 + col + 1 %}
+                                                    <div class="computer-slot">
+                                                        <div class="computer-item" data-pc="{{ pc_number }}" onclick="selectComputer(this)">
+                                                            <div class="computer-icon">
+                                                                <i class="fas fa-desktop"></i>
+                                                                <span class="pc-number">PC {{ pc_number }}</span>
+                                                                <span class="status-badge">Loading...</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endfor %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -203,108 +216,116 @@
             }
         });
 
-
         function showComputers(lab) {
-        const computerSelection = document.getElementById('computerSelection');
-        
-        if (!lab) {
-            computerSelection.style.display = 'none';
-            return;
+            const computerSelection = document.getElementById('computerSelection');
+            
+            if (!lab) {
+                computerSelection.style.display = 'none';
+                return;
+            }
+
+            computerSelection.style.display = 'block';
+
+            // Fetch computers status for the selected lab
+            fetch(`/get-computers/${lab}`)
+                .then(response => response.json())
+                .then(computers => {
+                    const computerElements = document.querySelectorAll('.computer-item');
+                    
+                    // Reset all computers to available state first
+                    computerElements.forEach(element => {
+                        const statusBadge = element.querySelector('.status-badge');
+                        const computerIcon = element.querySelector('.computer-icon');
+                        
+                        element.classList.remove('used', 'maintenance');
+                        computerIcon.className = 'computer-icon available';
+                        statusBadge.textContent = 'Available';
+                        statusBadge.className = 'status-badge available';
+                        element.onclick = function() { selectComputer(this); };
+                    });
+
+                    // Update status based on server data
+                    computers.forEach(pc => {
+                        const element = document.querySelector(`.computer-item[data-pc="${pc.id}"]`);
+                        if (element) {
+                            const statusBadge = element.querySelector('.status-badge');
+                            const computerIcon = element.querySelector('.computer-icon');
+
+                            element.classList.remove('available', 'used', 'maintenance');
+                            computerIcon.className = `computer-icon ${pc.status}`;
+                            statusBadge.textContent = pc.status.charAt(0).toUpperCase() + pc.status.slice(1);
+                            statusBadge.className = `status-badge ${pc.status}`;
+
+                            if (pc.status !== 'available') {
+                                element.onclick = null;
+                                element.classList.add('disabled');
+                            }
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching computers:', error);
+                });
         }
 
-        computerSelection.style.display = 'block';
+            function selectComputer(element) {
+                if (element.classList.contains('used') || element.classList.contains('maintenance')) {
+                    return;
+                }
 
-        // Fetch computers status for the selected lab
-        fetch(`/get-computers/${lab}`)
-            .then(response => response.json())
-            .then(computers => {
-                computers.forEach(pc => {
-                    const computerElement = document.querySelector(`.computer-item[data-pc="${pc.id}"]`);
-                    if (computerElement) {
-                        // Remove all existing status classes
-                        computerElement.classList.remove('used', 'maintenance');
-                        const statusDot = computerElement.querySelector('.status-dot');
-                        statusDot.classList.remove('status-available', 'status-used', 'status-maintenance');
+                // Remove selection from all computers
+                document.querySelectorAll('.computer-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
 
-                        // Add appropriate status
-                        if (pc.status === 'used') {
-                            computerElement.classList.add('used');
-                            statusDot.classList.add('status-used');
-                            computerElement.onclick = null;
-                        } else if (pc.status === 'maintenance') {
-                            computerElement.classList.add('maintenance');
-                            statusDot.classList.add('status-maintenance');
-                            computerElement.onclick = null;
-                        } else {
-                            statusDot.classList.add('status-available');
-                            computerElement.onclick = function() { selectComputer(this); };
-                        }
+                // Select this computer
+                element.classList.add('selected');
+                document.getElementById('computer').value = element.dataset.pc;
+            }
+
+            // Add this new function
+            function filterComputers(filter) {
+                const computers = document.querySelectorAll('.computer-item');
+                const filterButtons = document.querySelectorAll('.filter-btn');
+
+                // Update active button
+                filterButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.filter === filter) {
+                        btn.classList.add('active');
                     }
                 });
-            })
-            .catch(error => {
-                console.error('Error fetching computers:', error);
+
+                // Show/hide computers based on filter
+                computers.forEach(computer => {
+                    computer.classList.remove('hidden');
+                    
+                    if (filter === 'all') return;
+                    
+                    if (filter === 'available' && 
+                        !computer.classList.contains('used') && 
+                        !computer.classList.contains('maintenance')) {
+                        return;
+                    }
+                    
+                    if (filter === 'used' && computer.classList.contains('used')) {
+                        return;
+                    }
+                    
+                    if (filter === 'maintenance' && computer.classList.contains('maintenance')) {
+                        return;
+                    }
+                    
+                    computer.classList.add('hidden');
+                });
+            }
+
+            // Add event listeners for filter buttons
+            document.querySelectorAll('.filter-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    filterComputers(button.dataset.filter);
+                });
             });
-    }
-
-    function selectComputer(element) {
-        if (element.classList.contains('used') || element.classList.contains('maintenance')) {
-            return;
-        }
-
-        // Remove selection from all computers
-        document.querySelectorAll('.computer-item').forEach(item => {
-            item.classList.remove('selected');
-        });
-
-        // Select this computer
-        element.classList.add('selected');
-        document.getElementById('computer').value = element.dataset.pc;
-    }
-
-    // Add this new function
-    function filterComputers(filter) {
-        const computers = document.querySelectorAll('.computer-item');
-        const filterButtons = document.querySelectorAll('.filter-btn');
-
-        // Update active button
-        filterButtons.forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.dataset.filter === filter) {
-                btn.classList.add('active');
-            }
-        });
-
-        // Show/hide computers based on filter
-        computers.forEach(computer => {
-            computer.classList.remove('hidden');
-            
-            if (filter === 'all') return;
-            
-            if (filter === 'available' && 
-                !computer.classList.contains('used') && 
-                !computer.classList.contains('maintenance')) {
-                return;
-            }
-            
-            if (filter === 'used' && computer.classList.contains('used')) {
-                return;
-            }
-            
-            if (filter === 'maintenance' && computer.classList.contains('maintenance')) {
-                return;
-            }
-            
-            computer.classList.add('hidden');
-        });
-    }
-
-    // Add event listeners for filter buttons
-    document.querySelectorAll('.filter-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            filterComputers(button.dataset.filter);
-        });
-    });
     </script>
 </body>
 </html>

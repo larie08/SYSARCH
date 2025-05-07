@@ -39,35 +39,74 @@
             <div class="top-bar">
                 <button id="sidebar-toggle" class="hamburger-btn"><i class="fas fa-bars"></i></button>
             </div>
-
         <div class="header">
             <h1>Computer Control</h1>
             <div class="lab-selection">
-                <button class="lab-btn">Lab 517</button>
-                <button class="lab-btn">Lab 524</button>
-                <button class="lab-btn">Lab 526</button>
-                <button class="lab-btn">Lab 528</button>
-                <button class="lab-btn">Lab 530</button>
-                <button class="lab-btn">Lab 542</button>
+                <select id="labSelector" onchange="loadLabComputers(this.value)">
+                    <option value="">Select Laboratory</option>
+                    <option value="Lab 517">Lab 517</option>
+                    <option value="Lab 524">Lab 524</option>
+                    <option value="Lab 526">Lab 526</option>
+                    <option value="Lab 528">Lab 528</option>
+                    <option value="Lab 530">Lab 530</option>
+                    <option value="Lab 542">Lab 542</option>
+                </select>
             </div>
         </div>
         
+        <!-- Replace the computer-status div -->
         <div class="computer-status">
-            <div class="status-label">
-                <span>Available</span>
-                <span>Currently Used</span>
-                <span>Maintenance</span>
+            <div class="status-actions">
+                <button class="status-btn available" onclick="updateSelectedComputers('available')">
+                    <i class="fas fa-check-circle"></i> Set Available
+                </button>
+                <button class="status-btn in-use" onclick="updateSelectedComputers('in-use')">
+                    <i class="fas fa-user"></i> Set In Use
+                </button>
+                <button class="status-btn maintenance" onclick="updateSelectedComputers('maintenance')">
+                    <i class="fas fa-tools"></i> Set Maintenance
+                </button>
+                <button class="status-btn select-all" onclick="toggleSelectAll()">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
             </div>
-            <div class="computers">
-                {% for computer in computers %}
-                <div class="computer">
-                    <div class="computer-icon {{ computer.status }}">
-                        <i class="fas fa-desktop"></i>
+        
+            <div class="lab-layout">
+                <!-- Teacher's Area -->
+                <div class="teachers-area">
+                    <div class="teacher-desk">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>Teacher's Desk</span>
                     </div>
-                    <span>PC {{ computer.id }}</span>
-                    <button class="maintenance-btn" onclick="updateStatus({{ computer.id }}, 'maintenance')">Set Maintenance</button>
                 </div>
-                {% endfor %}
+        
+                <!-- Computer Layout -->
+                <div class="computers-grid">
+                    <div class="row-labels">
+                        {% for row in range(1, 6) %}
+                        <div class="row-label">Row {{ row }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="computer-rows">
+                        {% for row in range(5) %}
+                        <div class="computer-row">
+                            {% for col in range(10) %}
+                            {% set pc_number = row * 10 + col + 1 %}
+                            <div class="computer-slot">
+                                <input type="checkbox" class="computer-select" data-id="{{ pc_number }}">
+                                <div class="computer-icon {{ computers[pc_number-1].status if pc_number <= computers|length else 'available' }}">
+                                    <i class="fas fa-desktop"></i>
+                                    <span class="pc-number">PC {{ pc_number }}</span>
+                                    <span class="status-badge {{ computers[pc_number-1].status if pc_number <= computers|length else 'available' }}">
+                                        {{ computers[pc_number-1].status if pc_number <= computers|length else 'available' }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -113,6 +152,64 @@
                 alert('Failed to update status');
             }
         });
+    }
+    
+    function loadLabComputers(lab) {
+        if (!lab) return;
+        window.location.href = `/admin/computer_control?lab=${lab}`;
+    }
+
+    function updateSelectedComputers(status) {
+        const selectedComputers = Array.from(document.querySelectorAll('.computer-select:checked'))
+            .map(checkbox => checkbox.dataset.id);
+        
+        if (selectedComputers.length === 0) {
+            alert('Please select at least one computer');
+            return;
+        }
+
+        const lab = document.getElementById('labSelector').value;
+        
+        fetch('/admin/update_computer_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                lab: lab,
+                computers: selectedComputers,
+                status: status
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Status updated successfully');
+                location.reload();
+            } else {
+                alert('Failed to update status: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update status');
+        });
+    }
+
+    // Initialize lab selector with current lab
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentLab = urlParams.get('lab');
+        if (currentLab) {
+            document.getElementById('labSelector').value = currentLab;
+        }
+    });
+
+    // Add this to your existing script section
+    function toggleSelectAll() {
+        const checkboxes = document.querySelectorAll('.computer-select');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !allChecked);
     }
     </script>
 </body>
