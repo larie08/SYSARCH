@@ -85,13 +85,21 @@
                     <div class="modal-header">
                         <h2 id="resourceFolderName">Folder Name</h2>
                         <div class="modal-actions">
-                            <button class="add-file-btn"><i class="fas fa-plus"></i></button>
-                            <button class="delete-btn"><i class="fas fa-trash"></i></button>
-                            <button class="close-modal">&times;</button>
+                            <button class="add-file-btn" title="Upload Files"><i class="fas fa-plus"></i></button>
+                            <button class="delete-btn" title="Delete Selected" disabled><i class="fas fa-trash"></i></button>
+                            <button class="select-all-btn" title="Select All"><i class="fas fa-check-square"></i></button>
+                            <button class="close-modal" title="Close">&times;</button>
                         </div>
                     </div>
-                    <div class="files-grid" id="filesGrid">
-                        <!-- Files will be dynamically added here -->
+                    <div class="files-container">
+                        <div class="files-header">
+                            <span>Name</span>
+                            <span>Size</span>
+                            <span>Modified</span>
+                        </div>
+                        <div class="files-grid" id="filesGrid">
+                            <!-- Files will be dynamically added here -->
+                        </div>
                     </div>
                 </div>
             </div>

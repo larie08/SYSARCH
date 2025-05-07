@@ -221,20 +221,57 @@ def process_registration(user_data, course):
 
 # student lab resources start
 def get_resource_folders():
-    """Get all available resource folders"""
+    """Get available resource folders based on completed sit-ins"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # Get folders that have active resources and match completed sit-in purposes
+            cursor.execute("""
+                SELECT DISTINCT r.folder_name 
+                FROM resources r
+                INNER JOIN reservations res ON r.folder_name = res.purpose
+                WHERE r.is_active = 1
+                AND res.status = 'Completed'
+                GROUP BY r.folder_name
+                ORDER BY r.folder_name
+            """)
+            
+            return [{'name': folder[0]} for folder in cursor.fetchall()]
+    except Exception as e:
+        print(f"Database error in get_resource_folders: {e}")
+        return []
+
+def get_resource_files(folder_name):
+    """Get files for a specific resource folder"""
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT DISTINCT folder_name 
-                FROM resources 
-                WHERE is_active = 1
-                GROUP BY folder_name
-                HAVING COUNT(*) > 0
-            """)
-            return [{'name': folder[0]} for folder in cursor.fetchall()]
+                SELECT 
+                    name,
+                    file_path,
+                    file_type,
+                    file_size,
+                    upload_date,
+                    uploaded_by
+                FROM resources
+                WHERE folder_name = ? 
+                AND is_active = 1
+                ORDER BY upload_date DESC
+            """, (folder_name,))
+            
+            files = cursor.fetchall()
+            return [{
+                'name': file[0],
+                'path': file[1],
+                'type': file[2],
+                'size': file[3],
+                'date': file[4],
+                'uploaded_by': file[5]
+            } for file in files]
     except Exception as e:
-        print(f"Database error in get_resource_folders: {e}")
+        print(f"Error getting resource files: {e}")
         return []
 
 def save_resource_file(folder_name, file_name, file_path, file_type, file_size, uploaded_by):
@@ -242,15 +279,50 @@ def save_resource_file(folder_name, file_name, file_path, file_type, file_size, 
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
+            
+            # First check if the file already exists
             cursor.execute("""
-                INSERT INTO resources (folder_name, name, file_path, file_type, file_size, uploaded_by, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, 1)
-            """, (folder_name, file_name, file_path, file_type, file_size, uploaded_by))
+                SELECT id FROM resources 
+                WHERE folder_name = ? AND name = ?
+            """, (folder_name, file_name))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                # Update existing record
+                cursor.execute("""
+                    UPDATE resources 
+                    SET file_path = ?,
+                        file_type = ?,
+                        file_size = ?,
+                        uploaded_by = ?,
+                        upload_date = CURRENT_TIMESTAMP,
+                        is_active = 1
+                    WHERE folder_name = ? AND name = ?
+                """, (file_path, file_type, file_size, uploaded_by, folder_name, file_name))
+            else:
+                # Insert new record
+                cursor.execute("""
+                    INSERT INTO resources (
+                        folder_name, name, file_path, file_type, 
+                        file_size, uploaded_by, is_active, upload_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                """, (folder_name, file_name, file_path, file_type, file_size, uploaded_by))
+            
             conn.commit()
-            return True
+            
+            # Verify the save
+            cursor.execute("""
+                SELECT id FROM resources 
+                WHERE folder_name = ? AND name = ?
+            """, (folder_name, file_name))
+            
+            return cursor.fetchone() is not None
+            
     except Exception as e:
         print(f"Database error in save_resource_file: {e}")
         return False
+
 
 def get_resource_files(folder_name):
     """Get files for a specific resource folder"""
@@ -356,16 +428,20 @@ def get_student_purposes(student_id):
             conn.close()
 
 def get_student_completed_purposes(student_id):
-    with sqlite3.connect("users.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT DISTINCT purpose 
-            FROM reservations 
-            WHERE idno = ? 
-            AND status = 'Completed'
-        """, (student_id,))
-        purposes = cursor.fetchall()
-        return [purpose[0] for purpose in purposes]
+    """Get list of completed purposes for a student"""
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT purpose 
+                FROM reservations 
+                WHERE idno = ? 
+                AND status = 'Completed'
+            """, (student_id,))
+            return [row[0] for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"Error getting completed purposes: {e}")
+        return []
 # student lab purpose end
 
 # student user start       
@@ -2079,15 +2155,31 @@ def update_lab_resource(resource_id, lab_name, pc_count, status, description):
         print(f"Error updating lab resource: {e}")
         return False
 
-def delete_resource_file(self, folder, filename):
+def delete_resource_file(folder_name, filename):
+    """Delete resource file from database"""
     try:
-        query = "DELETE FROM resources WHERE folder = %s AND filename = %s"
-        self.cursor.execute(query, (folder, filename))
-        self.conn.commit()
-        return True
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # Delete the record completely instead of just marking inactive
+            cursor.execute("""
+                DELETE FROM resources 
+                WHERE folder_name = ? AND name = ?
+            """, (folder_name, filename))
+            
+            conn.commit()
+            
+            # Verify deletion
+            cursor.execute("""
+                SELECT COUNT(*) FROM resources 
+                WHERE folder_name = ? AND name = ?
+            """, (folder_name, filename))
+            
+            count = cursor.fetchone()[0]
+            return count == 0
+            
     except Exception as e:
-        print(f"Error deleting resource file: {e}")
-        self.conn.rollback()
+        print(f"Database error in delete_resource_file: {e}")
         return False
 # admin lab resources end
 

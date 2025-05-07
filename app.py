@@ -629,38 +629,71 @@ def get_resources(folder):
 @app.route('/admin/upload-resource', methods=['POST'])
 def upload_resource():
     if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+    
     if 'files[]' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
+        return jsonify({'success': False, 'error': 'No file uploaded'})
     
-    folder = request.form.get('folder')
-    if not folder:
-        return jsonify({'error': 'No folder specified'}), 400
-    
-    folder_path = os.path.join(RESOURCE_FOLDER, folder)
-    os.makedirs(folder_path, exist_ok=True)
-    
-    files = request.files.getlist('files[]')
-    uploaded_files = []
+    folder_name = request.form.get('folder')
+    uploaded_by = session.get('admin_username', 'admin')
     
     try:
+        files = request.files.getlist('files[]')
+        upload_folder = os.path.join(app.static_folder, 'resources', folder_name)
+        
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+        
+        successful_uploads = []
+        
         for file in files:
             if file and file.filename:
+                # Secure the filename
                 filename = secure_filename(file.filename)
-                file_path = os.path.join(folder_path, filename)
+                file_path = os.path.join(upload_folder, filename)
+                
+                # Save physical file
                 file.save(file_path)
-                uploaded_files.append(filename)
+                
+                # Get file info
+                file_size = os.path.getsize(file_path)
+                file_type = os.path.splitext(filename)[1][1:].lower()
+                
+                # Save to database using the correct path format
+                db_file_path = os.path.join('resources', folder_name, filename).replace('\\', '/')
+                
+                # Debug print
+                print(f"Saving to database: {folder_name}, {filename}, {db_file_path}, {file_type}, {file_size}, {uploaded_by}")
+                
+                if save_resource_file(
+                    folder_name=folder_name,
+                    file_name=filename,
+                    file_path=db_file_path,
+                    file_type=file_type,
+                    file_size=file_size,
+                    uploaded_by=uploaded_by
+                ):
+                    successful_uploads.append(filename)
+                else:
+                    # If database save fails, delete the physical file
+                    os.remove(file_path)
+                    print(f"Failed to save {filename} to database")
         
-        return jsonify({
-            'success': True,
-            'files': uploaded_files
-        })
+        if successful_uploads:
+            return jsonify({
+                'success': True,
+                'message': f'Successfully uploaded {len(successful_uploads)} files',
+                'files': successful_uploads
+            })
+        else:
+            return jsonify({'success': False, 'error': 'No files were uploaded successfully'})
+            
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Upload error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/admin/delete-resource', methods=['POST'])
-def delete_resource_file():  # <-- Renamed to avoid conflict
+def delete_resource_file_route():
     if 'admin_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
@@ -671,21 +704,24 @@ def delete_resource_file():  # <-- Renamed to avoid conflict
     if not folder or not filename:
         return jsonify({'error': 'Folder and filename are required'}), 400
     
-    # Handle spaces and special characters in folder names
-    folder = folder.replace(' ', '_')
-    safe_filename = secure_filename(filename)
-    file_path = os.path.join(RESOURCE_FOLDER, folder, safe_filename)
-    
     try:
+        # Get the physical file path
+        file_path = os.path.join(app.static_folder, 'resources', folder, filename)
+        
+        # Delete the physical file first
         if os.path.exists(file_path):
             os.remove(file_path)
+            print(f"Deleted physical file: {file_path}")
+        
+        # Then delete from database
+        if delete_resource_file(folder, filename):
             return jsonify({
                 'success': True,
                 'message': f'File {filename} deleted successfully'
             })
-        return jsonify({'error': 'File not found'}), 404
+        return jsonify({'error': 'Failed to delete file from database'}), 500
     except Exception as e:
-        print(f"Error deleting file: {str(e)}")  # For debugging
+        print(f"Error deleting file: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/preview-resource/<folder>/<filename>')
@@ -916,35 +952,25 @@ def Resources():
     if 'username' not in session:
         return redirect(url_for('login'))
     
-    student_id = session.get('student_id')
-    completed_purposes = get_student_completed_purposes(student_id)
-    
-    # Create resources array with all completed purposes
-    resources = []
-    for purpose in completed_purposes:
-        resource = {
-            'name': purpose,
-            'folder': purpose.replace(' ', '_'),
-            'files': []
-        }
+    try:
+        student_id = session.get('student_id')
+        # Get student's completed purposes
+        completed_purposes = get_student_purposes(student_id)
         
-        # Check for files in the resource folder
-        folder_path = os.path.join(app.root_path, 'static', 'resources', purpose.replace(' ', '_'))
-        if os.path.exists(folder_path):
-            for file in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, file)
-                if os.path.isfile(file_path):
-                    resource['files'].append({
-                        'name': file,
-                        'type': os.path.splitext(file)[1][1:] if '.' in file else '',
-                        'size': os.path.getsize(file_path)
-                    })
+        # Get resources for each completed purpose
+        resources = []
+        for purpose in completed_purposes:
+            files = get_resource_files(purpose)
+            if files:  # Only add folders that have files
+                resources.append({
+                    'name': purpose,
+                    'files': files
+                })
         
-        # Add the resource even if it has no files
-        resources.append(resource)
-    
-    print("Resources:", resources)  # Debug print
-    return render_template('student/lab.html', resources=resources)
+        return render_template('student/lab.html', resources=resources)
+    except Exception as e:
+        print(f"Error in Resources route:", e)
+        return render_template('student/lab.html', resources=[])
 
 @app.route('/student/download-resource/<folder>/<filename>')
 def download_student_resource(folder, filename):

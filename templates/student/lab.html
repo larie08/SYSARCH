@@ -57,10 +57,11 @@
                             {% if resource.files %}
                                 {% for file in resource.files %}
                                 <div class="file-item">
-                                    <i class="fas {{ getFileIcon(file.type) }}"></i>
+                                    <i class="fas fa-file"></i>
                                     <span class="file-name">{{ file.name }}</span>
                                     <span class="file-size">{{ file.size|filesizeformat }}</span>
-                                    <button class="download-btn" onclick="downloadFile('{{ resource.folder }}', '{{ file.name }}')">
+                                    <span class="file-date">{{ file.date }}</span>
+                                    <button class="download-btn" onclick="downloadFile('{{ resource.name }}', '{{ file.name }}')">
                                         <i class="fas fa-download"></i>
                                     </button>
                                 </div>
@@ -165,7 +166,12 @@
     // Make resources data available to JavaScript
     const resources = {{ resources|tojson|safe }};
     let currentResource = null;
-    
+
+    // Add this function to handle file preview
+    function previewFile(folder, filename) {
+        window.location.href = `/preview-resource/${encodeURIComponent(folder)}/${encodeURIComponent(filename)}`;
+    }
+
     function toggleFiles(resourceName) {
         const fileList = document.getElementById(`files-${resourceName}`);
         const folderIcon = document.querySelector(`#folder-${resourceName} i.folder-icon`);
@@ -223,8 +229,6 @@
             };
             return iconMap[fileType.toLowerCase()] || 'fa-file';
         }
-
-        // Remove all modal-related code since we're using direct folder/file display
     </script>
 </body>
 </html>
