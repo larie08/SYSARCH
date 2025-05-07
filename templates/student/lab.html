@@ -37,35 +37,40 @@
                     <h1>Laboratory Resources</h1>
                 </div>
             </div>
+            <!-- Add this right after the search bar div -->
             <div class="resources-container">
                 <!-- Search Bar -->
                 <div class="search-bar">
                     <input type="text" placeholder="Search resources...">
                     <i class="fas fa-search search-icon"></i>
                 </div>
-
+            
                 <!-- Resources Grid -->
                 <div class="resources-grid">
                     {% for resource in resources %}
-                    <div class="resource-folder" onclick="openResourceModal('{{ resource.name }}', '{{ resource.folder }}')">
-                        <i class="fas fa-folder folder-icon"></i>
-                        <span>{{ resource.name }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- Resource Preview Modal -->
-                <div id="resourceModal" class="modal">
-                    <div class="modal-content">
-                        <span class="close-btn" onclick="closeResourceModal()">&times;</span>
-                        <h2 id="modalTitle">Resource Preview</h2>
-                        <div id="resourcePreview" class="resource-preview"></div>
-                        <div class="modal-actions">
-                            <button onclick="downloadResource()" class="download-btn" id="downloadBtn" style="display: none;">
-                                <i class="fas fa-download"></i> Download
-                            </button>
+                    <div class="resource-folder">
+                        <div class="folder-header" id="folder-{{ resource.name }}" onclick="toggleFiles('{{ resource.name }}')">
+                            <i class="fas fa-folder folder-icon"></i>
+                            <span>{{ resource.name }}</span>
+                        </div>
+                        <div class="file-list" id="files-{{ resource.name }}" style="display: none;">
+                            {% if resource.files %}
+                                {% for file in resource.files %}
+                                <div class="file-item">
+                                    <i class="fas {{ getFileIcon(file.type) }}"></i>
+                                    <span class="file-name">{{ file.name }}</span>
+                                    <span class="file-size">{{ file.size|filesizeformat }}</span>
+                                    <button class="download-btn" onclick="downloadFile('{{ resource.folder }}', '{{ file.name }}')">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="no-files">No files available</p>
+                            {% endif %}
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
             </div>
 
@@ -105,91 +110,121 @@
         }
     }
         sidebarToggle.addEventListener('click', toggleSidebar);
-
-    /*SIDEBAR*/
-
-    /* Resource Modal Functions */
-    let currentResource = null;
-    let currentFile = null;
-        
-    function openResourceModal(resourceName, folderName) {
-    currentResource = {
-        name: resourceName,
-        folder: folderName
-    };
-    document.getElementById('modalTitle').textContent = resourceName;
-    document.getElementById('resourceModal').style.display = 'block';
-    document.getElementById('downloadBtn').style.display = 'none';
     
-    // Fetch files for this resource
-    fetch(`/student/get-resources/${encodeURIComponent(resourceName)}`)
-        .then(response => response.json())
-        .then(files => {
+        /* Resource Modal Functions */
+        function openResourceModal(resourceName) {
+            currentResource = resourceName;
+            document.getElementById('modalTitle').textContent = resourceName;
+            document.getElementById('resourceModal').style.display = 'block';
+            
+            // Find the resource from our resources array
+            const resource = resources.find(r => r.name === resourceName);
             const previewDiv = document.getElementById('resourcePreview');
             previewDiv.innerHTML = '';
             
-            if (!files || files.length === 0) {
-                previewDiv.innerHTML = '<p class="no-files">No files available.</p>';
+            if (!resource || !resource.files || resource.files.length === 0) {
+                previewDiv.innerHTML = '<p class="no-files">No files available in this folder.</p>';
                 return;
             }
             
             const fileList = document.createElement('div');
             fileList.className = 'file-list';
             
-            files.forEach(file => {
-                const fileDiv = document.createElement('div');
-                fileDiv.className = 'file-item';
-                fileDiv.onclick = () => selectFile(file);
+            resource.files.forEach(file => {
+                const fileElement = document.createElement('div');
+                fileElement.className = 'resource-file';
+                fileElement.onclick = () => selectFile(file);
                 
-                const icon = getFileIcon(file.type);
-                fileDiv.innerHTML = `
-                    <i class="fas ${icon}"></i>
-                    <div class="file-details">
+                fileElement.innerHTML = `
+                    <i class="fas ${getFileIcon(file.type)}"></i>
+                    <div class="file-info">
                         <span class="file-name">${file.name}</span>
-                        <span class="file-info">${file.type} - ${formatFileSize(file.size)}</span>
+                        <span class="file-size">${formatFileSize(file.size)}</span>
                     </div>
                 `;
-                
-                fileList.appendChild(fileDiv);
+                fileList.appendChild(fileElement);
             });
             
             previewDiv.appendChild(fileList);
-        })
-        .catch(error => {
-            console.error('Error loading resources:', error);
-            document.getElementById('resourcePreview').innerHTML = 
-                '<p class="error-message">Failed to load resources. Please try again.</p>';
-        });
-}
-
-function selectFile(file) {
-    currentFile = file;
-    document.getElementById('downloadBtn').style.display = 'block';
+        }
     
-    // Show file preview if possible
-    const previewDiv = document.getElementById('resourcePreview');
-    if (file.type.match(/^image\//)) {
-        previewDiv.innerHTML = `<img src="${file.path}" class="preview-image">`;
-    } else if (file.type === 'application/pdf') {
-        previewDiv.innerHTML = `<embed src="${file.path}" type="application/pdf" width="100%" height="500px">`;
-    } else {
-        previewDiv.innerHTML = `
-            <div class="no-preview">
-                <i class="fas ${getFileIcon(file.type)} fa-3x"></i>
-                <p>Preview not available for this file type</p>
-                <p class="file-name">${file.name}</p>
-            </div>`;
-    }
-}
+        function selectFile(file) {
+            currentFile = file;
+            const downloadBtn = document.getElementById('downloadBtn');
+            if (downloadBtn) {
+                downloadBtn.style.display = 'block';
+            }
+        }
+    
+        function downloadResource() {
+            if (currentResource && currentFile) {
+                window.location.href = `/student/download-resource/${encodeURIComponent(currentResource)}/${encodeURIComponent(currentFile.name)}`;
+            }
+        }
 
-function downloadResource() {
-    if (currentFile) {
-        const url = `/student/download-resource/${encodeURIComponent(currentResource.folder)}/${encodeURIComponent(currentFile.name)}`;
-        window.location.href = url;
+    // Make resources data available to JavaScript
+    const resources = {{ resources|tojson|safe }};
+    let currentResource = null;
+    
+    function toggleFiles(resourceName) {
+        const fileList = document.getElementById(`files-${resourceName}`);
+        const folderIcon = document.querySelector(`#folder-${resourceName} i.folder-icon`);
+        
+        if (fileList) {
+            const isOpen = fileList.style.display !== 'none';
+            
+            // Close all other open folders
+            document.querySelectorAll('.file-list').forEach(list => {
+                list.style.display = 'none';
+            });
+            document.querySelectorAll('.folder-icon').forEach(icon => {
+                icon.classList.remove('fa-folder-open');
+                icon.classList.add('fa-folder');
+            });
+            
+            // Toggle current folder
+            if (!isOpen) {
+                fileList.style.display = 'block';
+                folderIcon.classList.remove('fa-folder');
+                folderIcon.classList.add('fa-folder-open');
+                currentResource = resourceName;
+            } else {
+                fileList.style.display = 'none';
+                folderIcon.classList.remove('fa-folder-open');
+                folderIcon.classList.add('fa-folder');
+                currentResource = null;
+            }
+        }
     }
-}
 
-// Remove duplicate downloadResource function
-</script>
+    function downloadFile(folder, filename) {
+        window.location.href = `/student/download-resource/${encodeURIComponent(folder)}/${encodeURIComponent(filename)}`;
+    }
+
+        function getFileIcon(fileType) {
+            const iconMap = {
+                'pdf': 'fa-file-pdf',
+                'doc': 'fa-file-word',
+                'docx': 'fa-file-word',
+                'xls': 'fa-file-excel',
+                'xlsx': 'fa-file-excel',
+                'txt': 'fa-file-alt',
+                'jpg': 'fa-file-image',
+                'jpeg': 'fa-file-image',
+                'png': 'fa-file-image',
+                'zip': 'fa-file-archive',
+                'rar': 'fa-file-archive',
+                'py': 'fa-file-code',
+                'java': 'fa-file-code',
+                'cpp': 'fa-file-code',
+                'html': 'fa-file-code',
+                'css': 'fa-file-code',
+                'js': 'fa-file-code'
+            };
+            return iconMap[fileType.toLowerCase()] || 'fa-file';
+        }
+
+        // Remove all modal-related code since we're using direct folder/file display
+    </script>
 </body>
 </html>

@@ -916,8 +916,58 @@ def Resources():
     if 'username' not in session:
         return redirect(url_for('login'))
     
-    resources = get_student_resources(session['student_id'])
+    student_id = session.get('student_id')
+    completed_purposes = get_student_completed_purposes(student_id)
+    
+    # Create resources array with all completed purposes
+    resources = []
+    for purpose in completed_purposes:
+        resource = {
+            'name': purpose,
+            'folder': purpose.replace(' ', '_'),
+            'files': []
+        }
+        
+        # Check for files in the resource folder
+        folder_path = os.path.join(app.root_path, 'static', 'resources', purpose.replace(' ', '_'))
+        if os.path.exists(folder_path):
+            for file in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, file)
+                if os.path.isfile(file_path):
+                    resource['files'].append({
+                        'name': file,
+                        'type': os.path.splitext(file)[1][1:] if '.' in file else '',
+                        'size': os.path.getsize(file_path)
+                    })
+        
+        # Add the resource even if it has no files
+        resources.append(resource)
+    
+    print("Resources:", resources)  # Debug print
     return render_template('student/lab.html', resources=resources)
+
+@app.route('/student/download-resource/<folder>/<filename>')
+def download_student_resource(folder, filename):
+    if 'username' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    student_id = session.get('student_id')
+    # Verify student has completed the sit-in for this resource
+    completed_purposes = get_student_completed_purposes(student_id)
+    if folder.replace('_', ' ') not in completed_purposes:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        file_path = os.path.join(RESOURCE_FOLDER, folder, secure_filename(filename))
+        if os.path.exists(file_path):
+            return send_file(
+                file_path,
+                as_attachment=True,
+                download_name=filename
+            )
+        return jsonify({'error': 'File not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/Session')
 def Session():

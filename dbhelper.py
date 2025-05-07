@@ -354,6 +354,18 @@ def get_student_purposes(student_id):
     finally:
         if conn:
             conn.close()
+
+def get_student_completed_purposes(student_id):
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT purpose 
+            FROM reservations 
+            WHERE idno = ? 
+            AND status = 'Completed'
+        """, (student_id,))
+        purposes = cursor.fetchall()
+        return [purpose[0] for purpose in purposes]
 # student lab purpose end
 
 # student user start       
