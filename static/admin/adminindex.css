@@ -601,10 +601,21 @@ body {
     color: #7B341E;
 }
 
+.notification-container {
+    position: relative;
+    margin-right: 20px;
+}
+
 .notification-bell {
     position: relative;
     cursor: pointer;
     padding: 10px;
+    color: #603A75;
+    transition: transform 0.2s;
+}
+
+.notification-bell:hover {
+    transform: scale(1.1);
 }
 
 .notification-count {
@@ -617,77 +628,170 @@ body {
     padding: 2px 6px;
     font-size: 12px;
     display: none;
+    animation: pulse 2s infinite;
 }
 
-.notification-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    width: 300px;
-    max-height: 400px;
-    overflow-y: auto;
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.notification-modal {
     display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
     z-index: 1000;
+    animation: fadeIn 0.3s ease;
 }
 
-.notification-dropdown.show {
-    display: block;
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.notification-modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.notification-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.notification-modal-header h3 {
+    color: #603A75;
+    font-size: 1.2em;
+    margin: 0;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.mark-all-read-btn, .clear-all-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.mark-all-read-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.mark-all-read-btn:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+}
+
+.clear-all-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.clear-all-btn:hover {
+    background-color: #d32f2f;
+    transform: translateY(-2px);
 }
 
 .notification-item {
-    padding: 10px;
+    padding: 15px;
     border-bottom: 1px solid #eee;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    justify-content: space-between;
+    align-items: start;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
 }
 
 .notification-item.unread {
-    background-color: #f8f9fa;
+    background-color: #f0f7ff;
+    border-left: 4px solid #603A75;
 }
 
-.notification-message {
+.notification-content {
+    flex: 1;
+    margin-right: 15px;
+}
+
+.notification-content p {
+    margin: 0 0 5px 0;
     font-size: 14px;
     color: #333;
+    line-height: 1.4;
 }
 
-.notification-time {
-    font-size: 12px;
+.notification-content small {
     color: #666;
+    font-size: 12px;
 }
 
 .mark-read-btn {
-    background-color: #007bff;
-    color: white;
+    background: none;
     border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
+    color: #603A75;
     cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
     font-size: 12px;
-    align-self: flex-end;
 }
 
 .mark-read-btn:hover {
-    background-color: #0056b3;
-}
-
-.clear-btn {
-    background-color: #dc3545;
+    background-color: #603A75;
     color: white;
-    border: none;
-    padding: 10px;
-    width: 100%;
-    cursor: pointer;
-    font-size: 14px;
-    margin-top: 10px;
 }
 
-.clear-btn:hover {
-    background-color: #c82333;
+/* Scrollbar styling */
+.notification-modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.notification-modal-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.notification-modal-content::-webkit-scrollbar-thumb {
+    background: #603A75;
+    border-radius: 4px;
+}
+
+.notification-modal-content::-webkit-scrollbar-thumb:hover {
+    background: #4c2e5d;
 }
 
 /* Responsive adjustments */

@@ -2695,6 +2695,43 @@ def create_notification(user_id, message, type):
         print(f"Error creating notification: {str(e)}")
         return False
 
+def mark_all_notifications_read(user_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE notifications 
+                SET is_read = 1 
+                WHERE user_id = ? AND is_read = 0
+            """, (user_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error marking all notifications as read: {e}")
+        return False
+
+def delete_notification(notification_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM notifications WHERE id = ?", (notification_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error deleting notification: {e}")
+        return False
+
+def clear_all_notifications(user_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM notifications WHERE user_id = ?", (user_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error clearing all notifications: {e}")
+        return False
+
 if __name__ == "__main__":
     create_tables()
     print("Database Initialize Successful!")

@@ -45,9 +45,14 @@
                         <div class="notification-dropdown" id="notificationDropdown">
                             <div class="notification-header">
                                 <h3>Notifications</h3>
-                                <button onclick="clearAllNotifications()" class="clear-all-btn">
-                                    <i class="fas fa-trash"></i> Clear All
-                                </button>
+                                <div class="notification-actions">
+                                    <button onclick="markAllAsRead()" class="mark-all-read-btn">
+                                        <i class="fas fa-check-double"></i> Mark All as Read
+                                    </button>
+                                    <button onclick="clearAllNotifications()" class="clear-all-btn">
+                                        <i class="fas fa-trash"></i> Clear All
+                                    </button>
+                                </div>
                             </div>
                             <div class="notification-list" id="notificationList">
                                 <!-- Notifications will be loaded here -->
@@ -165,6 +170,7 @@
                         </div>
                     </div>
                 </div>
+            </div>
         </div>
     </div>
     <script>
@@ -173,7 +179,8 @@
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const bell = document.getElementById('notificationBell');
         const dropdown = document.getElementById('notificationDropdown');
-        const dropdownContent = document.getElementById('notificationDropdownContent');
+        const notificationList = document.getElementById('notificationList');
+        const count = document.getElementById('notificationCount');
         let isSidebarOpen = true;
     
         function toggleSidebar() {
@@ -262,224 +269,123 @@
             if (labSelector) {
                 showLabSchedule(labSelector.value);
             }
+        });
 
-            const count = document.getElementById('notificationCount');
-
-            // Notification system
-            const bell = document.getElementById('notificationBell');
-            const dropdown = document.getElementById('notificationDropdown');
-            let notificationCount = 0;
-
-            // Load notifications
-            function loadNotifications() {
-                fetch('/student/notifications')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        const notificationList = document.getElementById('notificationList');
-                        const notificationCount = document.getElementById('notificationCount');
-                        
-                        if (data.notifications && Array.isArray(data.notifications)) {
-                            notificationList.innerHTML = '';
-                            data.notifications.forEach(notification => {
-                                const item = document.createElement('div');
-                                item.className = `notification-item ${notification.is_read ? '' : 'unread'}`;
-                                item.innerHTML = `
-                                    <div class="notification-content">
-                                        <p>${notification.message}</p>
-                                        <small>${new Date(notification.created_at).toLocaleString()}</small>
-                                    </div>
-                                    ${!notification.is_read ? `
-                                        <button onclick="markAsRead(${notification.id})" class="mark-read-btn">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                    ` : ''}
-                                `;
-                                notificationList.appendChild(item);
-                            });
-                            
-                            notificationCount.textContent = data.count || '0';
-                            notificationCount.style.display = data.count > 0 ? 'block' : 'none';
-                        } else {
-                            console.error('Invalid notification data received:', data);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading notifications:', error);
-                    });
+        // Toggle dropdown
+        bell.addEventListener('click', function(e) {
+            e.stopPropagation();
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            if (dropdown.style.display === 'block') {
+                loadNotifications();
             }
+        });
 
-            function markAsRead(notificationId) {
-                fetch(`/student/notifications/read/${notificationId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!dropdown.contains(e.target) && !bell.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Load notifications
+        async function loadNotifications() {
+            try {
+                const response = await fetch('/student/notifications');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading notifications:', data.error);
+                    return;
+                }
+                
+                // Update notification count
+                count.textContent = data.count || '0';
+                count.style.display = data.count > 0 ? 'block' : 'none';
+                
+                // Update dropdown content
+                notificationList.innerHTML = '';
+                
+                if (!data.notifications || data.notifications.length === 0) {
+                    notificationList.innerHTML = '<div class="notification-item">No notifications</div>';
+                    return;
+                }
+                
+                data.notifications.forEach(notification => {
+                    const item = document.createElement('div');
+                    item.className = `notification-item ${notification.is_read ? '' : 'unread'}`;
+                    item.innerHTML = `
+                        <div class="notification-content">
+                            <p>${notification.message}</p>
+                            <small>${new Date(notification.created_at).toLocaleString()}</small>
+                        </div>
+                        ${!notification.is_read ? `
+                            <button onclick="markAsRead(${notification.id})" class="mark-read-btn">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        ` : ''}
+                    `;
+                    notificationList.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+
+        // Mark notification as read
+        async function markAsRead(notificationId) {
+            try {
+                const response = await fetch(`/student/notifications/read/${notificationId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    loadNotifications();
+                }
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        // Mark all as read
+        async function markAllAsRead() {
+            try {
+                const response = await fetch('/student/notifications/mark-all-read', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    loadNotifications();
+                }
+            } catch (error) {
+                console.error('Error marking all notifications as read:', error);
+            }
+        }
+
+        // Clear all notifications
+        async function clearAllNotifications() {
+            if (confirm('Are you sure you want to clear all notifications?')) {
+                try {
+                    const response = await fetch('/student/notifications/clear-all', {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
                     if (data.success) {
                         loadNotifications();
                     }
-                })
-                .catch(error => {
-                    console.error('Error marking notification as read:', error);
-                });
-            }
-
-            function clearAllNotifications() {
-                if (confirm('Are you sure you want to clear all notifications?')) {
-                    fetch('/student/notifications/clear', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            loadNotifications();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error clearing notifications:', error);
-                    });
+                } catch (error) {
+                    console.error('Error clearing notifications:', error);
                 }
             }
+        }
 
-            // Toggle notification dropdown
-            bell.addEventListener('click', () => {
-                dropdown.classList.toggle('show');
-                if (dropdown.classList.contains('show')) {
-                    loadNotifications();
-                }
-            });
+        // Check for new notifications every 30 seconds
+        setInterval(loadNotifications, 30000);
 
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (event) => {
-                if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
-                    dropdown.classList.remove('show');
-                }
-            });
-
-            // Check for new notifications every 10 seconds
-            setInterval(loadNotifications, 10000);
-
-            // Initial load
-            loadNotifications();
-        });
-
-        // document.getElementById('downloadScheduleBtn').addEventListener('click', function() {
-        //     const selectedLab = document.getElementById('labSelect').value;
-        //     window.location.href = `/download_lab_schedule_pdf?lab=${selectedLab}`;
-        // });
+        // Initial load
+        loadNotifications();
     </script>
-    <style>
-        .notification-container {
-            position: relative;
-        }
-
-        .notification-bell {
-            position: relative;
-            cursor: pointer;
-            padding: 10px;
-        }
-
-        .notification-count {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background-color: #ff4444;
-            color: white;
-            border-radius: 50%;
-            padding: 2px 6px;
-            font-size: 12px;
-            display: none;
-        }
-
-        .notification-dropdown {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: 100%;
-            width: 300px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-        }
-
-        .notification-dropdown.show {
-            display: block;
-        }
-
-        .notification-header {
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .notification-header h3 {
-            margin: 0;
-            font-size: 16px;
-        }
-
-        .clear-all-btn {
-            background: none;
-            border: none;
-            color: #666;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .notification-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .notification-item {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-        }
-
-        .notification-item.unread {
-            background-color: #f8f9fa;
-        }
-
-        .notification-content {
-            flex: 1;
-        }
-
-        .notification-content p {
-            margin: 0 0 5px 0;
-            font-size: 14px;
-        }
-
-        .notification-content small {
-            color: #666;
-            font-size: 12px;
-        }
-
-        .mark-read-btn {
-            background: none;
-            border: none;
-            color: #007bff;
-            cursor: pointer;
-            padding: 5px;
-        }
-
-        .mark-read-btn:hover {
-            color: #0056b3;
-        }
-    </style>
 </body>
 </html>

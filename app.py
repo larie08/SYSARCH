@@ -1340,6 +1340,54 @@ def student_clear_notifications():
     success = clear_all_notifications(session['student_id'])
     return jsonify({'success': success})
 
+@app.route('/admin/notifications/mark-all-read', methods=['POST'])
+def admin_mark_all_notifications_read():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = mark_all_notifications_read(session['admin_id'])
+    return jsonify({'success': success})
+
+@app.route('/student/notifications/mark-all-read', methods=['POST'])
+def student_mark_all_notifications_read():
+    if 'student_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = mark_all_notifications_read(session['student_id'])
+    return jsonify({'success': success})
+
+@app.route('/admin/notifications/delete/<int:notification_id>', methods=['DELETE'])
+def admin_delete_notification(notification_id):
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = delete_notification(notification_id)
+    return jsonify({'success': success})
+
+@app.route('/student/notifications/delete/<int:notification_id>', methods=['DELETE'])
+def student_delete_notification(notification_id):
+    if 'student_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = delete_notification(notification_id)
+    return jsonify({'success': success})
+
+@app.route('/admin/notifications/clear-all', methods=['POST'])
+def admin_clear_all_notifications():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = clear_all_notifications(session['admin_id'])
+    return jsonify({'success': success})
+
+@app.route('/student/notifications/clear-all', methods=['POST'])
+def student_clear_all_notifications():
+    if 'student_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = clear_all_notifications(session['student_id'])
+    return jsonify({'success': success})
+
 if __name__ == '__main__':
     app.run()
 
