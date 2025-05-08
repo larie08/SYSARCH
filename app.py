@@ -13,6 +13,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from werkzeug.utils import secure_filename
+from flask import jsonify
+
 
 
 app = Flask(__name__, static_folder='static')
@@ -94,6 +96,60 @@ def admin_dashboard():
                          total_sitins=total_sitins,
                          points_leaderboard=points_leaderboard,
                          student_leaderboard=student_leaderboard)
+
+@app.route('/admin/notifications')
+def admin_notifications():
+    if 'admin_id' not in session:
+        return jsonify({'notifications': [], 'count': 0}), 401
+    user_id = session['admin_id']
+    user_type = 'admin'
+    unread = request.args.get('unread')
+    notifications = get_notifications(user_id, user_type, unread_only=bool(unread))
+    return jsonify({
+        'notifications': notifications,
+        'count': sum(1 for n in notifications if not n['is_read'])
+    })
+
+@app.route('/student/notifications')
+def student_notifications():
+    if 'student_id' not in session:
+        return jsonify({'notifications': [], 'count': 0}), 401
+    user_id = session['student_id']
+    user_type = 'student'
+    unread = request.args.get('unread')
+    notifications = get_notifications(user_id, user_type, unread_only=bool(unread))
+    return jsonify({
+        'notifications': notifications,
+        'count': sum(1 for n in notifications if not n['is_read'])
+    })
+
+@app.route('/admin/notifications/read/<int:notification_id>', methods=['POST'])
+def admin_read_notification(notification_id):
+    if 'admin_id' not in session:
+        return jsonify({'success': False}), 401
+    mark_notification_read(notification_id)
+    return jsonify({'success': True})
+
+@app.route('/student/notifications/read/<int:notification_id>', methods=['POST'])
+def student_read_notification(notification_id):
+    if 'student_id' not in session:
+        return jsonify({'success': False}), 401
+    mark_notification_read(notification_id)
+    return jsonify({'success': True})
+
+@app.route('/admin/notifications/clear', methods=['POST'])
+def admin_clear_notifications():
+    if 'admin_id' not in session:
+        return jsonify({'success': False}), 401
+    clear_all_notifications(session['admin_id'], 'admin')
+    return jsonify({'success': True})
+
+@app.route('/student/notifications/clear', methods=['POST'])
+def student_clear_notifications():
+    if 'student_id' not in session:
+        return jsonify({'success': False}), 401
+    clear_all_notifications(session['student_id'], 'student')
+    return jsonify({'success': True})
 
 @app.route('/admin/pending_reservations')
 def admin_pending_reservations():
@@ -945,6 +1001,40 @@ def Announcement():
     announcements = get_student_announcements()
     return render_template('student/announcement.html', announcements=announcements)
 
+@app.route('/student/download-resource/<folder>/<filename>')
+def download_student_resource(folder, filename):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    safe_filename = secure_filename(filename)
+    file_path = os.path.join(app.static_folder, 'resources', folder, safe_filename)
+
+    if not os.path.exists(file_path):
+        flash('File not found.', 'error')
+        return redirect(url_for('Resources'))
+
+    # Get file extension and set correct MIME type
+    file_ext = os.path.splitext(filename)[1].lower()
+    mime_type = {
+        '.pdf': 'application/pdf',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.txt': 'text/plain',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png'
+    }.get(file_ext, 'application/octet-stream')
+
+    return send_file(
+        file_path,
+        mimetype=mime_type,
+        as_attachment=True,
+        download_name=filename,
+        max_age=0  # Prevent caching
+    )
+
 @app.route('/Resources')
 def Resources():
     if 'username' not in session:
@@ -956,6 +1046,8 @@ def Resources():
         
         # Get student's completed purposes
         completed_purposes = get_student_completed_purposes(student_id)
+        print("Student ID:", student_id)
+        print("Completed purposes:", completed_purposes)
         
         # Get all available purposes
         all_purposes = [
@@ -974,6 +1066,7 @@ def Resources():
                     'files': files,
                     'accessible': purpose in completed_purposes
                 })
+        print("Resources to display:", resources)
         
         return render_template('student/lab.html', 
                              resources=resources,
@@ -981,6 +1074,7 @@ def Resources():
     except Exception as e:
         print(f"Error in Resources route: {e}")
         return render_template('student/lab.html', resources=[])
+
 
 @app.route('/admin/download-resource/<folder>/<filename>')
 def admin_download_resource(folder, filename):

@@ -20,111 +20,125 @@ def connect_db():
     return conn
 
 def create_tables():
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+
+            # Create users table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    idno INTEGER PRIMARY KEY,
+                    lastname TEXT NOT NULL,
+                    firstname TEXT NOT NULL,
+                    middlename TEXT,
+                    course TEXT NOT NULL,
+                    year_level INTEGER NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    sessions TEXT DEFAULT NULL,
+                    points INTEGER DEFAULT 0,
+                    address TEXT,
+                    photo TEXT
+               )
+            """)
+
+            # Create lab_computers table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS lab_computers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lab TEXT NOT NULL,
+                    computer_number INTEGER NOT NULL,
+                    status TEXT DEFAULT 'active',
+                    UNIQUE(lab, computer_number)
+                )
+            """)
+
+            # Create reservations table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS reservations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    idno TEXT NOT NULL,
+                    purpose TEXT NOT NULL,
+                    laboratory TEXT NOT NULL, 
+                    computer_number INTEGER NOT NULL,
+                    time_in DATETIME NOT NULL,
+                    time_out DATETIME,
+                    status TEXT DEFAULT 'Pending',
+                    requested_time DATETIME,
+                    FOREIGN KEY (idno) REFERENCES users(IDNO)
+                )
+            """)
+
+            # Create feedback table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    reservation_id INTEGER,
+                    student_id TEXT,
+                    feedback TEXT,
+                    laboratory TEXT,
+                    date TEXT,
+                    FOREIGN KEY (student_id) REFERENCES users (idno),
+                    FOREIGN KEY (reservation_id) REFERENCES reservations (id)
+                )
+            """)
+
+            # Create resources table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS resources (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    folder_name TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_type TEXT,
+                    file_size INTEGER,
+                    uploaded_by TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    upload_date DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Create notifications table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    user_type TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    is_read INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            conn.commit()
+            print("All tables created successfully")
+    except Exception as e:
+        print(f"Error creating tables: {e}")
+
+# Call create_tables when the module is imported
+create_tables()
+
+def initialize_database():
     with sqlite3.connect("users.db") as conn:
         cursor = conn.cursor()
-
+        
+        # Update existing users with default session values based on their course
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                idno INTEGER PRIMARY KEY,
-                lastname TEXT NOT NULL,
-                firstname TEXT NOT NULL,
-                middlename TEXT,
-                course TEXT NOT NULL,
-                year_level INTEGER NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                sessions TEXT DEFAULT NULL,
-                points INTEGER DEFAULT 0,
-                address TEXT,
-                photo TEXT
-           )
+            UPDATE users 
+            SET remaining_sessions = CASE 
+                WHEN course LIKE '%BSIT%' THEN 30
+                WHEN course LIKE '%BSCS%' THEN 30
+                ELSE 20
+            END
+            WHERE remaining_sessions IS NULL;
         """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS lab_computers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                lab TEXT NOT NULL,
-                computer_number INTEGER NOT NULL,
-                status TEXT DEFAULT 'active',
-                UNIQUE(lab, computer_number)
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS reservations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                idno TEXT NOT NULL,
-                purpose TEXT NOT NULL,
-                laboratory TEXT NOT NULL, 
-                computer_number INTEGER NOT NULL,
-                time_in DATETIME NOT NULL,
-                time_out DATETIME,
-                status TEXT DEFAULT 'Pending',
-                requested_time DATETIME,
-                FOREIGN KEY (idno) REFERENCES users(IDNO)
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS feedback (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                reservation_id INTEGER,
-                student_id TEXT,
-                feedback TEXT,
-                laboratory TEXT,
-                date TEXT,
-                FOREIGN KEY (student_id) REFERENCES users (idno),
-                FOREIGN KEY (reservation_id) REFERENCES reservations (id)
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS resources (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                folder_name TEXT NOT NULL,
-                name TEXT NOT NULL,
-                file_path TEXT NOT NULL,
-                file_type TEXT,
-                file_size INTEGER,
-                uploaded_by TEXT,
-                is_active INTEGER DEFAULT 1,
-                upload_date DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        try:
-            cursor.execute("ALTER TABLE reservations ADD COLUMN time_out DATETIME")
-        except sqlite3.OperationalError:
-
-            pass
-            
+        
         conn.commit()
 
-# def initialize_database():
-#     with sqlite3.connect("users.db") as conn:
-#         cursor = conn.cursor()
-        
-#         # Add remaining_sessions column if it doesn't exist
-#         cursor.execute("""
-#             ALTER TABLE users ADD COLUMN remaining_sessions INTEGER DEFAULT 0;
-#         """)
-        
-#         # Update existing users with default session values based on their course
-#         cursor.execute("""
-#             UPDATE users 
-#             SET remaining_sessions = CASE 
-#                 WHEN course LIKE '%BSIT%' THEN 30
-#                 WHEN course LIKE '%BSCS%' THEN 30
-#                 ELSE 20
-#             END
-#             WHERE remaining_sessions IS NULL;
-#         """)
-        
-#         conn.commit()
-
-# # Call this function to update the database schema
-# initialize_database()
+# Call this function to update the database schema
+initialize_database()
 
 # for both student and admin
 def add_user(user_data):
@@ -156,6 +170,65 @@ def user_exists(idno, username, email):
         print(f"Error checking if user exists: {e}")
         return True  # Assume user exists on error to prevent registration
 
+def add_notification(user_id, user_type, message, type_):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO notifications (user_id, user_type, message, type)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, user_type, message, type_))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error adding notification: {e}")
+        return False
+
+def get_notifications(user_id, user_type, unread_only=False):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            query = """
+                SELECT id, message, type, is_read, created_at
+                FROM notifications
+                WHERE user_id = ? AND user_type = ?
+            """
+            params = [user_id, user_type]
+            if unread_only:
+                query += " AND is_read = 0"
+            query += " ORDER BY created_at DESC LIMIT 20"
+            cursor.execute(query, params)
+            return [
+                {"id": row[0], "message": row[1], "type": row[2], "is_read": bool(row[3]), "created_at": row[4]}
+                for row in cursor.fetchall()
+            ]
+    except Exception as e:
+        print(f"Error fetching notifications: {e}")
+        return []
+
+def mark_notification_read(notification_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE notifications SET is_read = 1 WHERE id = ?", (notification_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error marking notification as read: {e}")
+        return False
+
+def clear_all_notifications(user_id, user_type):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM notifications WHERE user_id = ? AND user_type = ?", (user_id, user_type))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error clearing notifications: {e}")
+        return False
+
+# for both student and admin
 
 # student register start
 def register_user(idno, lastname, firstname, middlename, level, course, address, username, email, password, session_limit):
@@ -941,6 +1014,19 @@ def create_reservation(student_id, lab, computer, time_in, purpose):
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             
+            # Get student info
+            cursor.execute("""
+                SELECT firstname, lastname
+                FROM users 
+                WHERE idno = ?
+            """, (student_id,))
+            student_info = cursor.fetchone()
+            
+            if not student_info:
+                return False, None, "Student not found"
+                
+            firstname, lastname = student_info
+            
             # Insert the reservation with Pending status
             cursor.execute("""
                 INSERT INTO reservations (
@@ -950,6 +1036,15 @@ def create_reservation(student_id, lab, computer, time_in, purpose):
             """, (student_id, lab, computer, time_in, purpose))
             
             new_id = cursor.lastrowid
+            
+            # Add notification for all admins
+            cursor.execute("SELECT admin_id FROM admin")
+            admin_ids = cursor.fetchall()
+            
+            message = f"New reservation request from {firstname} {lastname} for Lab {lab} PC {computer}"
+            for admin_id in admin_ids:
+                add_notification(admin_id[0], 'admin', message, 'reservation')
+            
             conn.commit()
             
             # Get the newly created reservation
@@ -1404,10 +1499,24 @@ def process_reservation_action(reservation_id, action):
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             
+            # Get student info first
+            cursor.execute("""
+                SELECT r.idno, u.firstname, u.lastname, r.lab, r.computer_number
+                FROM reservations r
+                JOIN users u ON r.idno = u.idno
+                WHERE r.id = ?
+            """, (reservation_id,))
+            student_info = cursor.fetchone()
+            
+            if not student_info:
+                return False, "Reservation not found"
+                
+            student_id, firstname, lastname, lab, computer = student_info
+            
             if action == 'approve':
                 cursor.execute("""
                     UPDATE reservations 
-                    SET status = 'Accepted',  -- Change status to 'Accepted'
+                    SET status = 'Accepted',
                         time_in = datetime('now', 'localtime')
                     WHERE id = ?
                 """, (reservation_id,))
@@ -1415,17 +1524,23 @@ def process_reservation_action(reservation_id, action):
                 cursor.execute("""
                     UPDATE users 
                     SET sessions = sessions - 1
-                    WHERE idno = (
-                        SELECT idno FROM reservations WHERE id = ?
-                    )
-                """, (reservation_id,))
+                    WHERE idno = ?
+                """, (student_id,))
+                
+                # Add notification for student
+                message = f"Your reservation for Lab {lab} PC {computer} has been approved!"
+                add_notification(student_id, 'student', message, 'reservation')
                 
             elif action == 'decline':
                 cursor.execute("""
                     UPDATE reservations 
-                    SET status = 'Rejected'  -- Change status to 'Rejected'
+                    SET status = 'Rejected'
                     WHERE id = ?
                 """, (reservation_id,))
+                
+                # Add notification for student
+                message = f"Your reservation for Lab {lab} PC {computer} has been rejected."
+                add_notification(student_id, 'student', message, 'reservation')
             
             conn.commit()
             return True, f'Reservation {action}d successfully'
@@ -1800,24 +1915,6 @@ def get_lab_computers(lab):
 # admin computer control end
 
 # admin lab schedule start
-def create_tables():
-    with sqlite3.connect("users.db") as conn:
-        cursor = conn.cursor()
-
-        # Add lab schedule table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS lab_schedules (
-                schedule_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                lab_number TEXT NOT NULL,
-                schedule_date DATE NOT NULL,
-                start_time TIME NOT NULL,
-                end_time TIME NOT NULL,
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-
 def add_lab_schedule(lab_number, schedule_date, start_time, end_time, description):
     try:
         with sqlite3.connect("users.db") as conn:
@@ -2400,3 +2497,7 @@ def cleanup_orphaned_sitins():
             WHERE idno NOT IN (SELECT idno FROM users)
         """)
         conn.commit()
+
+if __name__ == "__main__":
+    create_tables()
+    print("Database Initialize Successful!")
