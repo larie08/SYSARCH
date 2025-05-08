@@ -60,22 +60,24 @@
                         {% for sitin in sitins %}
                         <tr>
                             <td class="profile-photo-cell">
-                                {% if sitin[6] %}
-                                    <img src="{{ url_for('static', filename='uploads/' + sitin[6]) }}" alt="Profile Photo" class="profile-photo">
-                                {% else %}
-                                    <img src="{{ url_for('static', filename='images/default.png') }}" alt="Default Photo" class="profile-photo">
-                                {% endif %}
+                                <img src="{{ url_for('static', filename='uploads/' + sitin.photo) }}" 
+                                     alt="Profile Photo" 
+                                     class="profile-photo"
+                                     onerror="this.src='{{ url_for('static', filename='images/default.png') }}'">
                             </td>
-                            <td>{{ sitin[0] }}</td>
-                            <td>{{ sitin[1] }}</td>
-                            <td>{{ sitin[2] }}</td>
-                            <td>{{ sitin[3] }}</td>
-                            <td>{{ sitin[4] }}</td>
+                            <td>{{ sitin.idno }}</td>
+                            <td>{{ sitin.name }}</td>
+                            <td>{{ sitin.purpose }}</td>
+                            <td>{{ sitin.lab }}</td>
+                            <td>{{ sitin.time_in }}</td>
                             <td>
-                                {% if not sitin[5] %}
-                                    <button class="logout-button" data-sitin-id="{{ sitin[0] }}">Log Out</button>
+                                {% if not sitin.time_out %}
+                                    <div class="button-group">
+                                        <button class="points-button" data-sitin-id="{{ sitin.idno }}">Points</button>
+                                        <button class="logout-button" data-sitin-id="{{ sitin.idno }}">Log Out</button>
+                                    </div>
                                 {% else %}
-                                    {{ sitin[5] }}
+                                    {{ sitin.time_out }}
                                 {% endif %}
                             </td>
                         </tr>
@@ -108,39 +110,88 @@
 
         /*SIDEBAR*/
 
-    /*SIT IN LOG OUT*/
-            // Logout functionality
-            document.querySelectorAll('.logout-button').forEach(button => {
-            button.addEventListener('click', function() {
-                const sitinId = this.getAttribute('data-sitin-id');
-                
-                fetch('/admin/logout_student', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        student_id: sitinId
-                    })
+    /*POINTS AND LOGOUT FUNCTIONALITY*/
+    document.querySelectorAll('.points-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const sitinId = this.getAttribute('data-sitin-id');
+            
+            fetch('/admin/add_point_and_logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: sitinId
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Replace button with logout time
-                        const cell = this.parentElement;
-                        cell.textContent = data.logout_time;
-                        // Refresh the page to update counts
-                        location.reload();
-                    } else {
-                        alert('Failed to log out student');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while processing the request');
-                });
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Replace buttons with logout time
+                    const cell = this.parentElement.parentElement;
+                    cell.textContent = data.logout_time;
+                    // Refresh the page to update counts
+                    location.reload();
+                } else {
+                    alert(data.error || 'Failed to process points and logout');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while processing the request');
             });
         });
+    });
+
+    document.querySelectorAll('.logout-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const sitinId = this.getAttribute('data-sitin-id');
+            
+            fetch('/admin/logout_student', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: sitinId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Replace buttons with logout time
+                    const cell = this.parentElement.parentElement;
+                    cell.textContent = data.logout_time;
+                    // Refresh the page to update counts
+                    location.reload();
+                } else {
+                    alert('Failed to log out student');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while processing the request');
+            });
+        });
+    });
     </script>
+
+    <style>
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+        .points-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .points-button:hover {
+            background-color: #45a049;
+        }
+    </style>
 </body>
 </html>

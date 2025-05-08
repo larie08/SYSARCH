@@ -522,58 +522,88 @@ h5 {
 .notification-bell {
     position: relative;
     cursor: pointer;
+    padding: 10px;
 }
+
 .notification-count {
     position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #ff4444;
+    top: -5px;
+    right: -5px;
+    background-color: #ff4444;
     color: white;
     border-radius: 50%;
     padding: 2px 6px;
     font-size: 12px;
-}
-.notification-dropdown {
     display: none;
-    position: absolute;
-    right: 0;
-    top: 30px;
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    min-width: 250px;
-    z-index: 100;
-    max-height: 300px;
-    overflow-y: auto;
 }
-.notification-bell.open .notification-dropdown {
+
+.notification-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    width: 300px;
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+    z-index: 1000;
+}
+
+.notification-dropdown.show {
     display: block;
 }
+
 .notification-item {
-    padding: 10px 15px;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 14px;
-    cursor: pointer;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 5px;
 }
+
 .notification-item.unread {
-    background: #f5f5f5;
-    font-weight: bold;
+    background-color: #f8f9fa;
 }
-.notification-item:last-child {
-    border-bottom: none;
+
+.notification-message {
+    font-size: 14px;
+    color: #333;
 }
-.mark-read-btn, .clear-btn {
-    background: none;
+
+.notification-time {
+    font-size: 12px;
+    color: #666;
+}
+
+.mark-read-btn {
+    background-color: #007bff;
+    color: white;
     border: none;
-    color: #603A75;
+    padding: 5px 10px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
-    margin-left: 10px;
+    align-self: flex-end;
 }
+
+.mark-read-btn:hover {
+    background-color: #0056b3;
+}
+
 .clear-btn {
-    color: #ff4444;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px;
+    width: 100%;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.clear-btn:hover {
+    background-color: #c82333;
 }

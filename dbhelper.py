@@ -23,24 +23,50 @@ def create_tables():
     try:
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
-
+            
+            # Create notifications table with correct column names
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    type TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    is_read INTEGER DEFAULT 0,
+                    FOREIGN KEY (user_id) REFERENCES users(IDNO)
+                )
+            """)
+            
+            # Create admin_sitins table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS admin_sitins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    idno TEXT NOT NULL,
+                    purpose TEXT NOT NULL,
+                    lab TEXT NOT NULL,
+                    status TEXT DEFAULT 'Active',
+                    time_in DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    time_out DATETIME,
+                    FOREIGN KEY (idno) REFERENCES users(idno)
+                )
+            ''')
+            
             # Create users table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    idno INTEGER PRIMARY KEY,
-                    lastname TEXT NOT NULL,
-                    firstname TEXT NOT NULL,
-                    middlename TEXT,
-                    course TEXT NOT NULL,
-                    year_level INTEGER NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL,
-                    sessions TEXT DEFAULT NULL,
-                    points INTEGER DEFAULT 0,
-                    address TEXT,
-                    photo TEXT
-               )
+                    IDNO TEXT PRIMARY KEY,
+                    Lastname TEXT NOT NULL,
+                    Firstname TEXT NOT NULL,
+                    Middlename TEXT,
+                    YearLevel TEXT NOT NULL,
+                    Course TEXT NOT NULL,
+                    Address TEXT NOT NULL,
+                    Username TEXT UNIQUE NOT NULL,
+                    Email TEXT UNIQUE NOT NULL,
+                    Password TEXT NOT NULL,
+                    photo TEXT,
+                    session_limit INTEGER DEFAULT 15
+                )
             """)
 
             # Create lab_computers table
@@ -99,19 +125,6 @@ def create_tables():
                 )
             """)
 
-            # Create notifications table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS notifications (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id TEXT NOT NULL,
-                    user_type TEXT NOT NULL,
-                    message TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    is_read INTEGER DEFAULT 0,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
             # Create lab_schedules table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS lab_schedules (
@@ -126,9 +139,9 @@ def create_tables():
             """)
             
             conn.commit()
-            print("All tables created successfully")
+            print("Tables created successfully")
     except Exception as e:
-        print(f"Error creating tables: {e}")
+        print(f"Error creating tables: {str(e)}")
 
 # Call create_tables when the module is imported
 create_tables()
@@ -182,81 +195,6 @@ def user_exists(idno, username, email):
     except Exception as e:
         print(f"Error checking if user exists: {e}")
         return True  # Assume user exists on error to prevent registration
-
-def add_notification(user_id, user_type, message, type_='info'):
-    try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO notifications (user_id, user_type, message, type, created_at)
-            VALUES (?, ?, ?, ?, datetime('now'))
-        ''', (user_id, user_type, message, type_))
-        conn.commit()
-        return True
-    except Exception as e:
-        print(f"Error adding notification: {e}")
-        return False
-    finally:
-        conn.close()
-
-def get_notifications(user_id, user_type):
-    try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, message, type, is_read, created_at
-            FROM notifications
-            WHERE user_id = ? AND user_type = ?
-            ORDER BY created_at DESC
-        ''', (user_id, user_type))
-        notifications = []
-        for row in cursor.fetchall():
-            notifications.append({
-                'id': row[0],
-                'message': row[1],
-                'type': row[2],
-                'is_read': bool(row[3]),
-                'created_at': row[4]
-            })
-        return notifications
-    except Exception as e:
-        print(f"Error getting notifications: {e}")
-        return []
-    finally:
-        conn.close()
-
-def mark_notification_read(notification_id):
-    try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE notifications
-            SET is_read = 1
-            WHERE id = ?
-        ''', (notification_id,))
-        conn.commit()
-        return True
-    except Exception as e:
-        print(f"Error marking notification as read: {e}")
-        return False
-    finally:
-        conn.close()
-
-def clear_all_notifications(user_id, user_type):
-    try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            DELETE FROM notifications
-            WHERE user_id = ? AND user_type = ?
-        ''', (user_id, user_type))
-        conn.commit()
-        return True
-    except Exception as e:
-        print(f"Error clearing notifications: {e}")
-        return False
-    finally:
-        conn.close()
 
 # for both student and admin
 
@@ -1067,14 +1005,6 @@ def create_reservation(student_id, lab, computer, time_in, purpose):
             
             new_id = cursor.lastrowid
             
-            # Add notification for all admins
-            cursor.execute("SELECT admin_id FROM admin")
-            admin_ids = cursor.fetchall()
-            
-            message = f"New reservation request from {firstname} {lastname} for Lab {lab} PC {computer}"
-            for admin_id in admin_ids:
-                add_notification(admin_id[0], 'admin', message, 'reservation')
-            
             conn.commit()
             
             # Get the newly created reservation
@@ -1284,43 +1214,50 @@ def add_student_point(student_id):
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             
-            # Check if student has an active sit-in
-            cursor.execute("""
-                SELECT 1 FROM reservations 
-                WHERE idno = ? AND status = 'Active'
-            """, (student_id,))
-            
-            if not cursor.fetchone():
-                return False, "Student must be actively sitting in to receive points"
-            
+            # Get current points
             cursor.execute("SELECT points FROM users WHERE idno = ?", (student_id,))
             result = cursor.fetchone()
-            current_points = result[0] if result and result[0] is not None else 0
             
+            if not result:
+                return False, "Student not found"
+                
+            current_points = result[0] if result[0] is not None else 0
             new_points = current_points + 1
             
+            # Check if points should convert to session
             if new_points >= 3:
-                # Add a new session and reset points
+                # Get current sessions
+                cursor.execute("SELECT sessions FROM users WHERE idno = ?", (student_id,))
+                result = cursor.fetchone()
+                current_sessions = result[0] if result[0] is not None else 0
+                
+                # Calculate new sessions (1 session for every 3 points)
+                sessions_to_add = new_points // 3
+                remaining_points = new_points % 3
+                
+                # Update both points and sessions
                 cursor.execute("""
                     UPDATE users 
-                    SET points = 0,
-                        sessions = COALESCE(sessions, 0) + 1
+                    SET points = ?, sessions = sessions + ? 
                     WHERE idno = ?
-                """, (student_id,))
-                message = 'Points converted to a new session!'
+                """, (remaining_points, sessions_to_add, student_id))
+                
+                message = f"Added 1 point. Converted {sessions_to_add} points to {sessions_to_add} session(s). Remaining points: {remaining_points}"
             else:
                 # Just update points
                 cursor.execute("""
                     UPDATE users 
-                    SET points = ?
+                    SET points = ? 
                     WHERE idno = ?
                 """, (new_points, student_id))
-                message = f'Point added! ({new_points}/3 points)'
+                
+                message = f"Added 1 point. Current points: {new_points}"
             
             conn.commit()
             return True, message
             
     except Exception as e:
+        print(f"Error adding point: {e}")
         return False, str(e)
 
 def get_student_leaderboard():
@@ -1329,15 +1266,27 @@ def get_student_leaderboard():
         with sqlite3.connect("users.db") as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT u.firstname, u.lastname, u.course, COUNT(r.id) as sit_in_count, u.photo
+                SELECT 
+                    u.firstname,
+                    u.lastname,
+                    u.course,
+                    COUNT(a.id) as sit_in_count,
+                    COALESCE(u.photo, 'default.png') as photo
                 FROM users u
-                JOIN reservations r ON u.idno = r.idno
-                WHERE r.status = 'Completed'
+                JOIN admin_sitins a ON u.idno = a.idno
+                WHERE a.status = 'Completed'
                 GROUP BY u.idno
                 ORDER BY sit_in_count DESC
                 LIMIT 5
             """)
-            return cursor.fetchall()
+            results = cursor.fetchall()
+            return [{
+                'firstname': row[0],
+                'lastname': row[1],
+                'course': row[2],
+                'sit_in_count': row[3],
+                'photo': row[4]
+            } for row in results]
     except Exception as e:
         print(f"Error getting student leaderboard: {e}")
         return []
@@ -1559,40 +1508,19 @@ def process_reservation_action(reservation_id, action):
                     WHERE idno = ?
                 """, (student_id,))
                 
-                # Create active sit-in record
+                # Create active sit-in record in admin_sitins table
                 cursor.execute("""
-                    INSERT INTO reservations (idno, purpose, lab, computer_number, status, time_in)
-                    VALUES (?, ?, ?, ?, 'Active', datetime('now', 'localtime'))
-                """, (student_id, purpose, lab, computer))
-                
-                # Add notification for student
-                message = f"Your reservation for Lab {lab} PC {computer} has been approved!"
-                add_notification(student_id, 'student', message, 'reservation')
-                
-                # Add notification for admin
-                cursor.execute("SELECT admin_id FROM admin")
-                admin_ids = cursor.fetchall()
-                admin_message = f"Reservation for {firstname} {lastname} (Lab {lab} PC {computer}) has been approved"
-                for admin_id in admin_ids:
-                    add_notification(admin_id[0], 'admin', admin_message, 'reservation')
-                
+                    INSERT INTO admin_sitins (idno, purpose, lab, status, time_in)
+                    VALUES (?, ?, ?, 'Active', datetime('now', 'localtime'))
+                """, (student_id, purpose, lab))
             elif action == 'decline':
+                # Update reservation status to Rejected
                 cursor.execute("""
                     UPDATE reservations 
-                    SET status = 'Rejected'
+                    SET status = 'Rejected',
+                        time_in = datetime('now', 'localtime')
                     WHERE id = ?
                 """, (reservation_id,))
-                
-                # Add notification for student
-                message = f"Your reservation for Lab {lab} PC {computer} has been rejected."
-                add_notification(student_id, 'student', message, 'reservation')
-                
-                # Add notification for admin
-                cursor.execute("SELECT admin_id FROM admin")
-                admin_ids = cursor.fetchall()
-                admin_message = f"Reservation for {firstname} {lastname} (Lab {lab} PC {computer}) has been rejected"
-                for admin_id in admin_ids:
-                    add_notification(admin_id[0], 'admin', admin_message, 'reservation')
             
             conn.commit()
             return True, f'Reservation {action}d successfully'
@@ -2065,12 +1993,22 @@ def generate_lab_schedule_pdf(schedules):
         start_time = schedule[3]
         end_time = schedule[4]
         
+        # Convert 24-hour time to 12-hour format
+        def format_time(time24):
+            if not time24:
+                return ''
+            hour, minute = time24.split(':')
+            hour = int(hour)
+            period = 'PM' if hour >= 12 else 'AM'
+            hour12 = hour % 12 or 12
+            return f"{hour12}:{minute} {period}"
+        
         # Add row to data
         data.append([
             schedule[1],  # Laboratory
             schedule[2],  # Date
-            start_time,   # Start Time
-            end_time,     # End Time
+            format_time(start_time),   # Start Time
+            format_time(end_time),     # End Time
             schedule[5]   # Description
         ])
     
@@ -2549,6 +2487,213 @@ def cleanup_orphaned_sitins():
             WHERE idno NOT IN (SELECT idno FROM users)
         """)
         conn.commit()
+
+def has_active_sit_in(student_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 1 FROM reservations 
+                WHERE idno = ? AND status = 'Active' 
+                AND time_out IS NULL
+            """, (student_id,))
+            return cursor.fetchone() is not None
+    except Exception as e:
+        print(f"Error checking active sit-in: {e}")
+        return False
+
+def create_admin_sit_in(student_id, purpose, lab):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            
+            # Check if student has an active sit-in
+            cursor.execute("""
+                SELECT 1 FROM admin_sitins 
+                WHERE idno = ? AND status = 'Active' 
+                AND time_out IS NULL
+            """, (student_id,))
+            
+            if cursor.fetchone():
+                return False, "Student already has an active sit-in session"
+            
+            # Check remaining sessions
+            cursor.execute("SELECT sessions FROM users WHERE idno = ?", (student_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return False, "Student not found"
+                
+            remaining_sessions = int(result[0]) if result[0] is not None else 0
+            
+            if remaining_sessions <= 0:
+                return False, "No remaining sessions available"
+            
+            # Create sit-in record
+            cursor.execute("""
+                INSERT INTO admin_sitins (idno, purpose, lab, status, time_in)
+                VALUES (?, ?, ?, 'Active', datetime('now', 'localtime'))
+            """, (student_id, purpose, lab))
+            
+            # Deduct one session
+            cursor.execute("""
+                UPDATE users 
+                SET sessions = sessions - 1 
+                WHERE idno = ?
+            """, (student_id,))
+            
+            conn.commit()
+            return True, "Walk-in sit-in recorded successfully"
+            
+    except Exception as e:
+        print(f"Error creating admin sit-in: {e}")
+        return False, str(e)
+
+def get_current_admin_sitins():
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    a.idno,
+                    u.firstname || ' ' || u.lastname as name,
+                    a.purpose,
+                    a.lab,
+                    strftime('%Y-%m-%d %H:%M', a.time_in) as time_in,
+                    a.time_out,
+                    COALESCE(u.photo, 'default.png') as photo
+                FROM admin_sitins a
+                JOIN users u ON a.idno = u.idno
+                WHERE a.status = 'Active' AND a.time_out IS NULL
+                ORDER BY a.time_in DESC
+            """)
+            results = cursor.fetchall()
+            return [{
+                'idno': row[0],
+                'name': row[1],
+                'purpose': row[2],
+                'lab': row[3],
+                'time_in': row[4],
+                'time_out': row[5],
+                'photo': row[6]
+            } for row in results]
+    except Exception as e:
+        print(f"Error getting current admin sit-ins: {e}")
+        return []
+
+def logout_admin_sit_in(student_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            cursor.execute("""
+                UPDATE admin_sitins 
+                SET status = 'Completed', time_out = ? 
+                WHERE idno = ? AND status = 'Active' AND time_out IS NULL
+            """, (current_time, student_id))
+            
+            if cursor.rowcount > 0:
+                conn.commit()
+                return True, current_time
+            return False, "No active sit-in found"
+            
+    except Exception as e:
+        print(f"Error logging out admin sit-in: {e}")
+        return False, str(e)
+
+# Notification functions
+def create_notification(user_id, message, type):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO notifications (user_id, message, type)
+                VALUES (?, ?, ?)
+            """, (user_id, message, type))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error creating notification: {e}")
+        return False
+
+def get_user_notifications(user_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, message, created_at, is_read 
+                FROM notifications 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC
+            """, (user_id,))
+            notifications = cursor.fetchall()
+            return [{
+                'id': notification[0],
+                'message': notification[1],
+                'created_at': notification[2],
+                'is_read': bool(notification[3])
+            } for notification in notifications]
+    except Exception as e:
+        print(f"Error getting notifications: {str(e)}")
+        return []
+
+def mark_notification_read(notification_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE notifications 
+                SET is_read = 1 
+                WHERE id = ?
+            """, (notification_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error marking notification as read: {str(e)}")
+        return False
+
+def get_unread_notification_count(user_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM notifications 
+                WHERE user_id = ? AND is_read = 0
+            """, (user_id,))
+            return cursor.fetchone()[0]
+    except Exception as e:
+        print(f"Error getting unread notification count: {str(e)}")
+        return 0
+
+def clear_all_notifications(user_id):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                DELETE FROM notifications 
+                WHERE user_id = ?
+            """, (user_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error clearing notifications: {str(e)}")
+        return False
+
+def create_notification(user_id, message, type):
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO notifications (user_id, message, type, created_at, is_read)
+                VALUES (?, ?, ?, datetime('now'), 0)
+            """, (user_id, message, type))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error creating notification: {str(e)}")
+        return False
 
 if __name__ == "__main__":
     create_tables()

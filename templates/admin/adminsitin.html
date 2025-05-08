@@ -134,7 +134,6 @@
                             <th>Name</th>
                             <th>Purpose</th>
                             <th>Laboratory</th>
-                            <th>PC Number</th>
                             <th>Remaining Session</th>
                         </tr>
                     </thead>
@@ -251,15 +250,6 @@
                                     <option value="Lab 544">Lab 544</option>
                             </select>
                         </td>
-                        <td>
-                            <select id="pc_number" name="computer_number" required>
-                                <!-- Changed name to computer_number -->
-                                <option value="">Select PC</option>
-                                ${Array.from({length: 50}, (_, i) => i + 1).map(num => 
-                                    `<option value="${num}">PC ${num}</option>`
-                                ).join('')}
-                            </select>
-                        </td>
                         <td>${remainingSessions}</td>
                     `;
 
@@ -279,10 +269,9 @@
             const studentId = document.querySelector('#studentDetails td:first-child').textContent;
             const purpose = document.querySelector('#purpose').value;
             const laboratory = document.querySelector('#laboratory').value;
-            const computerNumber = document.querySelector('#pc_number').value;
-            const remainingSessions = parseInt(document.querySelector('#studentDetails td:nth-child(6)').textContent);
+            const remainingSessions = parseInt(document.querySelector('#studentDetails td:nth-child(5)').textContent);
 
-            if (!purpose || !laboratory || !computerNumber) {
+            if (!purpose || !laboratory) {
                 alert('Please fill in all required fields');
                 return;
             }
@@ -295,8 +284,7 @@
                 body: JSON.stringify({
                     student_id: studentId,
                     purpose: purpose,
-                    lab: laboratory,  // Changed to match database column name
-                    computer_number: parseInt(computerNumber),  // Changed to match database column name
+                    lab: laboratory,
                     remaining_sessions: remainingSessions
                 })
             })
@@ -318,7 +306,11 @@
             })
             .catch(error => {
                 console.error('Error details:', error);
-                alert(`Error: ${error.message || 'Failed to process sit-in request'}`);
+                if (error.message.includes('already has an active sit-in session')) {
+                    alert('This student already has an active sit-in session. Please check the Current Sit-in page and log them out first.');
+                } else {
+                    alert(`Error: ${error.message || 'Failed to process sit-in request'}`);
+                }
             });
         });
         

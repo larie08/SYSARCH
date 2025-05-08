@@ -72,88 +72,47 @@ def login():
 def admin_dashboard():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
-    
+        
+    # Get dashboard statistics
     total_students, current_sitins, total_sitins = get_dashboard_stats()
+    
+    # Get purpose data for chart
     purpose_data = get_purpose_data()
-    points_leaderboard = get_points_leaderboard()
+    
+    # Get recent sit-ins (last 5)
+    recent_sitins = get_current_admin_sitins()[:5]
+    
+    # Get pending reservations (last 5)
+    pending_reservations = get_pending_reservations()[:5]
+    
+    # Get student leaderboard
     student_leaderboard = get_student_leaderboard()
     
-    # Chart data setup
-    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    purposes = ['C#', 'C', 'ASP.NET', 'Java', 'Php','Database', 'Digital Logic & Design', 'Embedded Designs & IOT', 'System Integration & Architecture', 'Computer Application', 'Project Management', 'IT Trends', 'Technopreneurship', 'Capstone']
-    chart_data = {purpose: [0] * 12 for purpose in purposes}
+    # Process chart data
+    months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+    chart_data = {
+        'C#': [0] * 12,
+        'C': [0] * 12,
+        'ASP.NET': [0] * 12,
+        'Java': [0] * 12,
+        'Php': [0] * 12
+    }
     
-    for month_num, purpose, count in purpose_data:
-        month_index = int(month_num) - 1
+    for month, purpose, count in purpose_data:
+        month_index = int(month) - 1
         if purpose in chart_data:
             chart_data[purpose][month_index] = count
     
     return render_template('admin/admindashboard.html',
-                         chart_data=chart_data,
-                         months=months,
                          total_students=total_students,
                          current_sitins=current_sitins,
                          total_sitins=total_sitins,
-                         points_leaderboard=points_leaderboard,
-                         student_leaderboard=student_leaderboard)
+                         chart_data=chart_data,
+                         months=months,
+                         student_leaderboard=student_leaderboard,
+                         recent_sitins=recent_sitins,
+                         pending_reservations=pending_reservations)
 
-@app.route('/admin/notifications')
-def admin_notifications():
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Not logged in'}), 401
-        
-    notifications = get_notifications(session['admin_id'], 'admin')
-    unread_count = sum(1 for n in notifications if not n['is_read'])
-    
-    return jsonify({
-        'notifications': notifications,
-        'count': unread_count
-    })
-
-@app.route('/student/notifications')
-def student_notifications():
-    if 'idno' not in session:
-        return jsonify({'error': 'Not logged in'}), 401
-        
-    notifications = get_notifications(session['idno'], 'student')
-    unread_count = sum(1 for n in notifications if not n['is_read'])
-    
-    return jsonify({
-        'notifications': notifications,
-        'count': unread_count
-    })
-
-@app.route('/admin/notifications/read/<int:notification_id>', methods=['POST'])
-def admin_read_notification(notification_id):
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Not logged in'}), 401
-        
-    success = mark_notification_read(notification_id)
-    return jsonify({'success': success})
-
-@app.route('/student/notifications/read/<int:notification_id>', methods=['POST'])
-def student_read_notification(notification_id):
-    if 'idno' not in session:
-        return jsonify({'error': 'Not logged in'}), 401
-        
-    success = mark_notification_read(notification_id)
-    return jsonify({'success': success})
-
-@app.route('/admin/notifications/clear', methods=['POST'])
-def admin_clear_notifications():
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Not logged in'}), 401
-        
-    success = clear_all_notifications(session['admin_id'], 'admin')
-    return jsonify({'success': success})
-
-@app.route('/student/notifications/clear', methods=['POST'])
-def student_clear_notifications():
-    if 'idno' not in session:
-        return jsonify({'error': 'Not logged in'}), 401
-        
-    success = clear_all_notifications(session['idno'], 'student')
-    return jsonify({'success': success})
 
 @app.route('/admin/pending_reservations')
 def admin_pending_reservations():
@@ -163,21 +122,29 @@ def admin_pending_reservations():
     reservations = get_pending_reservations()  # Ensure this function includes all necessary fields
     return render_template('admin/adminreservation.html', reservations=reservations)
 
-@app.route('/admin/process_reservation/<int:reservation_id>/<string:action>', methods=['POST'])
+@app.route('/admin/process_reservation/<int:reservation_id>/<action>', methods=['POST'])
 def process_reservation(reservation_id, action):
     if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
     success, message = process_reservation_action(reservation_id, action)
     
     if success:
-        return jsonify({
-            'success': True,
-            'message': message
-        })
+        if action == 'approve':
+            return jsonify({
+                'success': True,
+                'message': message,
+                'redirect': url_for('admin_current_sitin')
+            })
+        elif action == 'decline':
+            return jsonify({
+                'success': True,
+                'message': message,
+                'redirect': url_for('admin_pending_reservations')
+            })
+        return jsonify({'success': True, 'message': message})
     
-    print(f"Error processing reservation: {message}")
-    return jsonify({'error': message}), 500
+    return jsonify({'success': False, 'error': message}), 400
 
 @app.route('/admin/reservation_logs')
 def reservation_logs():
@@ -413,8 +380,15 @@ def download_lab_schedule_pdf():
     if 'admin_id' not in session and 'username' not in session:
         return redirect(url_for('login'))
     
+    # Get selected laboratory from query parameters
+    selected_lab = request.args.get('lab', '')
+    
     # Get all lab schedules
     schedules = get_lab_schedules()
+    
+    # Filter schedules if a specific lab is selected
+    if selected_lab and selected_lab != 'all':
+        schedules = [s for s in schedules if s[1] == selected_lab]
     
     # Generate PDF
     pdf_buffer = generate_lab_schedule_pdf(schedules)
@@ -583,60 +557,27 @@ def sit_in_student():
     data = request.get_json()
     student_id = data.get('student_id')
     purpose = data.get('purpose')
-    lab = data.get('lab')  # Changed from 'laboratory' to match frontend
-    computer_number = data.get('computer_number')
+    lab = data.get('lab')
     
     # Validate required fields
-    if not all([student_id, purpose, lab, computer_number]):
+    if not all([student_id, purpose, lab]):
         return jsonify({
             'success': False, 
-            'error': 'Missing required fields (student_id, purpose, lab, computer_number)'
+            'error': 'Missing required fields (student_id, purpose, lab)'
         }), 400
 
-    try:
-        # First check remaining sessions
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT sessions FROM users WHERE idno = ?", (student_id,))
-            result = cursor.fetchone()
-            
-            if not result:
-                return jsonify({'success': False, 'error': 'Student not found'})
-                
-            remaining_sessions = int(result[0]) if result[0] is not None else 0
-            
-            if remaining_sessions <= 0:
-                return jsonify({
-                    'success': False, 
-                    'error': 'No remaining sessions available'
-                })
-                
-            # Proceed with sit-in if sessions available
-            cursor.execute("""
-                INSERT INTO reservations (idno, purpose, lab, computer_number, status, time_in)
-                VALUES (?, ?, ?, ?, 'Active', datetime('now', 'localtime'))
-            """, (student_id, purpose, lab, computer_number))
-            
-            # Deduct one session
-            cursor.execute("""
-                UPDATE users 
-                SET sessions = sessions - 1 
-                WHERE idno = ?
-            """, (student_id,))
-            
-            conn.commit()
-            
+    success, message = create_admin_sit_in(student_id, purpose, lab)
+    
+    if success:
         return jsonify({
             'success': True,
-            'message': 'Sit-in recorded successfully'
+            'message': message
         })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
+    
+    return jsonify({
+        'success': False,
+        'error': message
+    }), 400
 
 @app.route('/admin/current-sitin')
 def admin_current_sitin():
@@ -644,7 +585,7 @@ def admin_current_sitin():
         return redirect(url_for('login'))
     
     update_null_sessions()
-    current_sitins = get_current_sitins()
+    current_sitins = get_current_admin_sitins()
     return render_template('admin/admincurrentsitin.html', sitins=current_sitins)
 
 @app.route('/admin/records')
@@ -826,7 +767,7 @@ def logout_student():
     data = request.get_json()
     student_id = data.get('student_id')
     
-    success, result = logout_student_session(student_id)
+    success, result = logout_admin_sit_in(student_id)
     
     if success:
         return jsonify({
@@ -840,6 +781,31 @@ def admin_logout():
     session.pop('admin_id', None)
     session.pop('admin_username', None)
     return redirect(url_for('admin_login'))
+
+@app.route('/admin/add_point_and_logout', methods=['POST'])
+def add_point_and_logout():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.get_json()
+    student_id = data.get('student_id')
+    
+    # First add point and check if it converts to session
+    success, message = add_student_point(student_id)
+    if not success:
+        return jsonify({'error': message}), 500
+    
+    # Then logout the student
+    success, result = logout_admin_sit_in(student_id)
+    
+    if success:
+        return jsonify({
+            'success': True,
+            'logout_time': result,
+            'message': message
+        })
+    return jsonify({'error': result}), 500
+
 #admin route
 
 
@@ -1314,6 +1280,65 @@ def forgot_password():
 def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
+
+# Notification routes
+@app.route('/admin/notifications')
+def admin_notifications():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    notifications = get_user_notifications(session['admin_id'])
+    unread_count = get_unread_notification_count(session['admin_id'])
+    
+    return jsonify({
+        'notifications': notifications,
+        'count': unread_count
+    })
+
+@app.route('/admin/notifications/read/<int:notification_id>', methods=['POST'])
+def admin_mark_notification_read(notification_id):
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = mark_notification_read(notification_id)
+    return jsonify({'success': success})
+
+@app.route('/admin/notifications/clear', methods=['POST'])
+def admin_clear_notifications():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = clear_all_notifications(session['admin_id'])
+    return jsonify({'success': success})
+
+@app.route('/student/notifications')
+def student_notifications():
+    if 'student_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    notifications = get_user_notifications(session['student_id'])
+    unread_count = get_unread_notification_count(session['student_id'])
+    
+    return jsonify({
+        'notifications': notifications,
+        'count': unread_count
+    })
+
+@app.route('/student/notifications/read/<int:notification_id>', methods=['POST'])
+def student_mark_notification_read(notification_id):
+    if 'student_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = mark_notification_read(notification_id)
+    return jsonify({'success': success})
+
+@app.route('/student/notifications/clear', methods=['POST'])
+def student_clear_notifications():
+    if 'student_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    success = clear_all_notifications(session['student_id'])
+    return jsonify({'success': success})
 
 if __name__ == '__main__':
     app.run()
