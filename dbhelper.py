@@ -111,6 +111,19 @@ def create_tables():
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+
+            # Create lab_schedules table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS lab_schedules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lab_number TEXT NOT NULL,
+                    schedule_date DATE NOT NULL,
+                    start_time TIME NOT NULL,
+                    end_time TIME NOT NULL,
+                    description TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             
             conn.commit()
             print("All tables created successfully")
@@ -170,63 +183,80 @@ def user_exists(idno, username, email):
         print(f"Error checking if user exists: {e}")
         return True  # Assume user exists on error to prevent registration
 
-def add_notification(user_id, user_type, message, type_):
+def add_notification(user_id, user_type, message, type_='info'):
     try:
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO notifications (user_id, user_type, message, type)
-                VALUES (?, ?, ?, ?)
-            """, (user_id, user_type, message, type_))
-            conn.commit()
-            return True
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO notifications (user_id, user_type, message, type, created_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+        ''', (user_id, user_type, message, type_))
+        conn.commit()
+        return True
     except Exception as e:
         print(f"Error adding notification: {e}")
         return False
+    finally:
+        conn.close()
 
-def get_notifications(user_id, user_type, unread_only=False):
+def get_notifications(user_id, user_type):
     try:
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            query = """
-                SELECT id, message, type, is_read, created_at
-                FROM notifications
-                WHERE user_id = ? AND user_type = ?
-            """
-            params = [user_id, user_type]
-            if unread_only:
-                query += " AND is_read = 0"
-            query += " ORDER BY created_at DESC LIMIT 20"
-            cursor.execute(query, params)
-            return [
-                {"id": row[0], "message": row[1], "type": row[2], "is_read": bool(row[3]), "created_at": row[4]}
-                for row in cursor.fetchall()
-            ]
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, message, type, is_read, created_at
+            FROM notifications
+            WHERE user_id = ? AND user_type = ?
+            ORDER BY created_at DESC
+        ''', (user_id, user_type))
+        notifications = []
+        for row in cursor.fetchall():
+            notifications.append({
+                'id': row[0],
+                'message': row[1],
+                'type': row[2],
+                'is_read': bool(row[3]),
+                'created_at': row[4]
+            })
+        return notifications
     except Exception as e:
-        print(f"Error fetching notifications: {e}")
+        print(f"Error getting notifications: {e}")
         return []
+    finally:
+        conn.close()
 
 def mark_notification_read(notification_id):
     try:
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE notifications SET is_read = 1 WHERE id = ?", (notification_id,))
-            conn.commit()
-            return True
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE notifications
+            SET is_read = 1
+            WHERE id = ?
+        ''', (notification_id,))
+        conn.commit()
+        return True
     except Exception as e:
         print(f"Error marking notification as read: {e}")
         return False
+    finally:
+        conn.close()
 
 def clear_all_notifications(user_id, user_type):
     try:
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM notifications WHERE user_id = ? AND user_type = ?", (user_id, user_type))
-            conn.commit()
-            return True
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            DELETE FROM notifications
+            WHERE user_id = ? AND user_type = ?
+        ''', (user_id, user_type))
+        conn.commit()
+        return True
     except Exception as e:
         print(f"Error clearing notifications: {e}")
         return False
+    finally:
+        conn.close()
 
 # for both student and admin
 
@@ -1501,7 +1531,7 @@ def process_reservation_action(reservation_id, action):
             
             # Get student info first
             cursor.execute("""
-                SELECT r.idno, u.firstname, u.lastname, r.lab, r.computer_number
+                SELECT r.idno, u.firstname, u.lastname, r.lab, r.computer_number, r.purpose
                 FROM reservations r
                 JOIN users u ON r.idno = u.idno
                 WHERE r.id = ?
@@ -1511,9 +1541,10 @@ def process_reservation_action(reservation_id, action):
             if not student_info:
                 return False, "Reservation not found"
                 
-            student_id, firstname, lastname, lab, computer = student_info
+            student_id, firstname, lastname, lab, computer, purpose = student_info
             
             if action == 'approve':
+                # Update reservation status
                 cursor.execute("""
                     UPDATE reservations 
                     SET status = 'Accepted',
@@ -1521,15 +1552,29 @@ def process_reservation_action(reservation_id, action):
                     WHERE id = ?
                 """, (reservation_id,))
                 
+                # Deduct one session from student
                 cursor.execute("""
                     UPDATE users 
                     SET sessions = sessions - 1
                     WHERE idno = ?
                 """, (student_id,))
                 
+                # Create active sit-in record
+                cursor.execute("""
+                    INSERT INTO reservations (idno, purpose, lab, computer_number, status, time_in)
+                    VALUES (?, ?, ?, ?, 'Active', datetime('now', 'localtime'))
+                """, (student_id, purpose, lab, computer))
+                
                 # Add notification for student
                 message = f"Your reservation for Lab {lab} PC {computer} has been approved!"
                 add_notification(student_id, 'student', message, 'reservation')
+                
+                # Add notification for admin
+                cursor.execute("SELECT admin_id FROM admin")
+                admin_ids = cursor.fetchall()
+                admin_message = f"Reservation for {firstname} {lastname} (Lab {lab} PC {computer}) has been approved"
+                for admin_id in admin_ids:
+                    add_notification(admin_id[0], 'admin', admin_message, 'reservation')
                 
             elif action == 'decline':
                 cursor.execute("""
@@ -1541,6 +1586,13 @@ def process_reservation_action(reservation_id, action):
                 # Add notification for student
                 message = f"Your reservation for Lab {lab} PC {computer} has been rejected."
                 add_notification(student_id, 'student', message, 'reservation')
+                
+                # Add notification for admin
+                cursor.execute("SELECT admin_id FROM admin")
+                admin_ids = cursor.fetchall()
+                admin_message = f"Reservation for {firstname} {lastname} (Lab {lab} PC {computer}) has been rejected"
+                for admin_id in admin_ids:
+                    add_notification(admin_id[0], 'admin', admin_message, 'reservation')
             
             conn.commit()
             return True, f'Reservation {action}d successfully'

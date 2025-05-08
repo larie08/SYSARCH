@@ -11,6 +11,96 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #ff4444;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .notification-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        .notification-dropdown.show {
+            display: block;
+        }
+
+        .notification-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .notification-item.unread {
+            background-color: #f8f9fa;
+        }
+
+        .notification-message {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .notification-time {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .mark-read-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            align-self: flex-end;
+        }
+
+        .mark-read-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .clear-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .clear-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard-container">
@@ -129,7 +219,7 @@
                                 <table id="scheduleTable" style="display: none;">
                                     <thead>
                                         <tr>
-                                            <th>Laboratory</th> <!-- Added Laboratory column -->
+                                            <th>Laboratory</th>
                                             <th>Date</th>
                                             <th>Start Time</th>
                                             <th>End Time</th>
@@ -139,7 +229,7 @@
                                     <tbody>
                                         {% for schedule in lab_schedules %}
                                         <tr class="schedule-row" data-lab="{{ schedule[1] }}">
-                                            <td>{{ schedule[1] }}</td> <!-- Display Laboratory number -->
+                                            <td>{{ schedule[1] }}</td>
                                             <td>{{ schedule[2] }}</td>
                                             <td class="time-cell">{{ schedule[3] }}</td>
                                             <td class="time-cell">{{ schedule[4] }}</td>
@@ -159,6 +249,8 @@
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.querySelector('.main-content');
         const sidebarToggle = document.getElementById('sidebar-toggle');
+        const bell = document.getElementById('notificationBell');
+        const dropdown = document.getElementById('notificationDropdown');
         let isSidebarOpen = true;
     
         function toggleSidebar() {
@@ -173,6 +265,39 @@
         }
     
         sidebarToggle.addEventListener('click', toggleSidebar);
+
+        // Define showLabSchedule function at the top level
+        function showLabSchedule(lab) {
+            const table = document.getElementById('scheduleTable');
+            const message = document.getElementById('noScheduleMessage');
+            const rows = document.getElementsByClassName('schedule-row');
+            
+            if (!lab) {
+                table.style.display = 'none';
+                message.textContent = 'Select a laboratory to view its schedule.';
+                message.style.display = 'block';
+                return;
+            }
+            
+            let hasSchedules = false;
+            for (let row of rows) {
+                if (lab === 'all' || row.dataset.lab === lab) {
+                    row.style.display = 'table-row';
+                    hasSchedules = true;
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+            
+            if (hasSchedules) {
+                table.style.display = 'table';
+                message.style.display = 'none';
+            } else {
+                table.style.display = 'none';
+                message.textContent = 'No schedules available for this laboratory.';
+                message.style.display = 'block';
+            }
+        }
     
         // Points update using Server-Sent Events
         const eventSource = new EventSource('/points-stream');
@@ -209,185 +334,132 @@
             timeCells.forEach(cell => {
                 cell.textContent = formatTime(cell.textContent.trim());
             });
-            const bell = document.getElementById('notificationBell');
-            const dropdown = document.getElementById('notificationDropdown');
+
+            // Initialize lab schedule display
+            const labSelector = document.getElementById('labSelector');
+            if (labSelector) {
+                showLabSchedule(labSelector.value);
+            }
+
             const count = document.getElementById('notificationCount');
 
-            function loadNotifications() {
-                fetch('/student/notifications')
-                  .then(res => res.json())
-                  .then(data => {
-                    dropdown.innerHTML = data.notifications.length
-                      ? data.notifications.map(n =>
-                          `<div class="notification-item${n.is_read ? '' : ' unread'}" data-id="${n.id}">
-                              <span>${n.message}</span>
-                              ${!n.is_read ? `<button class='mark-read-btn' data-id='${n.id}'>Mark as read</button>` : ''}
-                          </div>`
-                        ).join('') +
-                        `<button class="clear-btn" id="clearNotifications">Clear All</button>`
-                      : '<div class="notification-item">No notifications</div>';
-                    count.textContent = data.count || '';
-                  });
-            }
-
-            bell.addEventListener('click', function(e) {
-                bell.classList.toggle('open');
-                loadNotifications();
-                e.stopPropagation();
-            });
-
-            document.addEventListener('click', function() {
-                bell.classList.remove('open');
-            });
-
-            dropdown.addEventListener('click', function(e) {
-                if (e.target.classList.contains('mark-read-btn')) {
-                    const id = e.target.getAttribute('data-id');
-                    fetch(`/student/notifications/read/${id}`, {method: 'POST'}).then(loadNotifications);
-                    e.stopPropagation();
-                }
-                if (e.target.id === 'clearNotifications') {
-                    fetch('/student/notifications/clear', {method: 'POST'}).then(loadNotifications);
-                    e.stopPropagation();
-                }
-            });
-
-            setInterval(() => {
-                fetch('/student/notifications?unread=1')
-                  .then(res => res.json())
-                  .then(data => {
-                    count.textContent = data.count || '';
-                  });
-            }, 10000);
-
-            // Request notification permission
-            if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-                Notification.requestPermission();
-            }
-
-            // WebSocket connection for real-time notifications
-            const ws = new WebSocket('ws://' + window.location.host + '/ws');
-            
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                showNotification(data.title, data.message);
-                updateNotificationCount();
-            };
-
-            // Function to show browser notification
-            function showNotification(title, message) {
-                if (Notification.permission === 'granted') {
-                    const notification = new Notification(title, {
-                        body: message,
-                        icon: '/static/images/ccs.png'
-                    });
-
-                    // Add notification to dropdown
-                    const dropdown = document.getElementById('notificationDropdown');
-                    const notificationItem = document.createElement('div');
-                    notificationItem.className = 'notification-item unread';
-                    notificationItem.innerHTML = `
-                        <span>${message}</span>
-                        <button class='mark-read-btn'>Mark as read</button>
-                    `;
-                    dropdown.insertBefore(notificationItem, dropdown.firstChild);
-
-                    // Update notification count
-                    updateNotificationCount();
-                }
-            }
-
-            // Function to update notification count
-            function updateNotificationCount() {
-                const count = document.getElementById('notificationCount');
-                const unreadCount = document.querySelectorAll('.notification-item.unread').length;
-                count.textContent = unreadCount || '';
-            }
-
-            // Handle notification bell click
+            // Notification system
             const bell = document.getElementById('notificationBell');
             const dropdown = document.getElementById('notificationDropdown');
+            let notificationCount = 0;
 
-            bell.addEventListener('click', function(e) {
-                bell.classList.toggle('open');
-                e.stopPropagation();
+            // Load notifications
+            async function loadNotifications() {
+                try {
+                    const response = await fetch('/student/notifications');
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        console.error('Error loading notifications:', data.error);
+                        return;
+                    }
+                    
+                    // Update notification count
+                    notificationCount = data.count;
+                    updateNotificationBadge();
+                    
+                    // Update dropdown content
+                    const dropdownContent = document.getElementById('notificationDropdownContent');
+                    dropdownContent.innerHTML = '';
+                    
+                    if (data.notifications.length === 0) {
+                        dropdownContent.innerHTML = '<div class="notification-item">No notifications</div>';
+                        return;
+                    }
+                    
+                    data.notifications.forEach(notification => {
+                        const item = document.createElement('div');
+                        item.className = `notification-item ${notification.is_read ? '' : 'unread'}`;
+                        item.innerHTML = `
+                            <div class="notification-message">${notification.message}</div>
+                            <div class="notification-time">${formatTime(notification.created_at)}</div>
+                            ${!notification.is_read ? `
+                                <button class="mark-read-btn" onclick="markAsRead(${notification.id})">
+                                    Mark as read
+                                </button>
+                            ` : ''}
+                        `;
+                        dropdownContent.appendChild(item);
+                    });
+                    
+                    // Add clear all button if there are notifications
+                    if (data.notifications.length > 0) {
+                        const clearBtn = document.createElement('button');
+                        clearBtn.className = 'clear-btn';
+                        clearBtn.textContent = 'Clear all notifications';
+                        clearBtn.onclick = clearAllNotifications;
+                        dropdownContent.appendChild(clearBtn);
+                    }
+                } catch (error) {
+                    console.error('Error loading notifications:', error);
+                }
+            }
+
+            // Update notification badge
+            function updateNotificationBadge() {
+                const badge = document.getElementById('notificationCount');
+                badge.textContent = notificationCount;
+                badge.style.display = notificationCount > 0 ? 'block' : 'none';
+            }
+
+            // Mark notification as read
+            async function markAsRead(notificationId) {
+                try {
+                    const response = await fetch(`/student/notifications/read/${notificationId}`, {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        loadNotifications(); // Reload notifications
+                    }
+                } catch (error) {
+                    console.error('Error marking notification as read:', error);
+                }
+            }
+
+            // Clear all notifications
+            async function clearAllNotifications() {
+                try {
+                    const response = await fetch('/student/notifications/clear', {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        loadNotifications(); // Reload notifications
+                    }
+                } catch (error) {
+                    console.error('Error clearing notifications:', error);
+                }
+            }
+
+            // Toggle notification dropdown
+            bell.addEventListener('click', () => {
+                dropdown.classList.toggle('show');
+                if (dropdown.classList.contains('show')) {
+                    loadNotifications();
+                }
             });
 
             // Close dropdown when clicking outside
-            document.addEventListener('click', function() {
-                bell.classList.remove('open');
-            });
-
-            // Handle mark as read and clear all buttons
-            dropdown.addEventListener('click', function(e) {
-                if (e.target.classList.contains('mark-read-btn')) {
-                    e.target.parentElement.classList.remove('unread');
-                    updateNotificationCount();
-                    e.stopPropagation();
-                }
-                if (e.target.id === 'clearNotifications') {
-                    dropdown.innerHTML = '<div class="notification-item">No notifications</div>';
-                    updateNotificationCount();
-                    e.stopPropagation();
+            document.addEventListener('click', (event) => {
+                if (!bell.contains(event.target) && !dropdown.contains(event.target)) {
+                    dropdown.classList.remove('show');
                 }
             });
 
-            // Simulate notifications for testing (remove in production)
-            function simulateNotification() {
-                const notifications = [
-                    {
-                        title: 'Reservation Update',
-                        message: 'Your reservation for Lab 517 has been approved!'
-                    },
-                    {
-                        title: 'Session Reminder',
-                        message: 'You have 30 minutes remaining in your current session'
-                    },
-                    {
-                        title: 'Points Update',
-                        message: 'You earned a point for good behavior!'
-                    }
-                ];
-                
-                const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
-                showNotification(randomNotification.title, randomNotification.message);
-            }
+            // Check for new notifications every 10 seconds
+            setInterval(loadNotifications, 10000);
 
-            // Test notification every 30 seconds (remove in production)
-            setInterval(simulateNotification, 30000);
+            // Initial load
+            loadNotifications();
         });
-
-        function showLabSchedule(lab) {
-        const table = document.getElementById('scheduleTable');
-        const message = document.getElementById('noScheduleMessage');
-        const rows = document.getElementsByClassName('schedule-row');
-        
-        if (!lab) {
-            table.style.display = 'none';
-            message.textContent = 'Select a laboratory to view its schedule.';
-            message.style.display = 'block';
-            return;
-        }
-        
-        let hasSchedules = false;
-        for (let row of rows) {
-            if (lab === 'all' || row.dataset.lab === lab) {
-                row.style.display = 'table-row';
-                hasSchedules = true;
-            } else {
-                row.style.display = 'none';
-            }
-        }
-        
-        if (hasSchedules) {
-            table.style.display = 'table';
-            message.style.display = 'none';
-        } else {
-            table.style.display = 'none';
-            message.textContent = 'No schedules available for this laboratory.';
-            message.style.display = 'block';
-        }
-    }
-</script>
+    </script>
 </body>
 </html>

@@ -100,56 +100,60 @@ def admin_dashboard():
 @app.route('/admin/notifications')
 def admin_notifications():
     if 'admin_id' not in session:
-        return jsonify({'notifications': [], 'count': 0}), 401
-    user_id = session['admin_id']
-    user_type = 'admin'
-    unread = request.args.get('unread')
-    notifications = get_notifications(user_id, user_type, unread_only=bool(unread))
+        return jsonify({'error': 'Not logged in'}), 401
+        
+    notifications = get_notifications(session['admin_id'], 'admin')
+    unread_count = sum(1 for n in notifications if not n['is_read'])
+    
     return jsonify({
         'notifications': notifications,
-        'count': sum(1 for n in notifications if not n['is_read'])
+        'count': unread_count
     })
 
 @app.route('/student/notifications')
 def student_notifications():
-    if 'student_id' not in session:
-        return jsonify({'notifications': [], 'count': 0}), 401
-    user_id = session['student_id']
-    user_type = 'student'
-    unread = request.args.get('unread')
-    notifications = get_notifications(user_id, user_type, unread_only=bool(unread))
+    if 'idno' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+        
+    notifications = get_notifications(session['idno'], 'student')
+    unread_count = sum(1 for n in notifications if not n['is_read'])
+    
     return jsonify({
         'notifications': notifications,
-        'count': sum(1 for n in notifications if not n['is_read'])
+        'count': unread_count
     })
 
 @app.route('/admin/notifications/read/<int:notification_id>', methods=['POST'])
 def admin_read_notification(notification_id):
     if 'admin_id' not in session:
-        return jsonify({'success': False}), 401
-    mark_notification_read(notification_id)
-    return jsonify({'success': True})
+        return jsonify({'error': 'Not logged in'}), 401
+        
+    success = mark_notification_read(notification_id)
+    return jsonify({'success': success})
 
 @app.route('/student/notifications/read/<int:notification_id>', methods=['POST'])
 def student_read_notification(notification_id):
-    if 'student_id' not in session:
-        return jsonify({'success': False}), 401
-    mark_notification_read(notification_id)
-    return jsonify({'success': True})
+    if 'idno' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+        
+    success = mark_notification_read(notification_id)
+    return jsonify({'success': success})
 
 @app.route('/admin/notifications/clear', methods=['POST'])
 def admin_clear_notifications():
     if 'admin_id' not in session:
-        return jsonify({'success': False}), 401
-    clear_all_notifications(session['admin_id'], 'admin')
-    return jsonify({'success': True})
+        return jsonify({'error': 'Not logged in'}), 401
+        
+    success = clear_all_notifications(session['admin_id'], 'admin')
+    return jsonify({'success': success})
 
 @app.route('/student/notifications/clear', methods=['POST'])
 def student_clear_notifications():
-    if 'student_id' not in session:
-        return jsonify({'success': False}), 401
-    clear_all_notifications(session['student_id'], 'student')
-    return jsonify({'success': True})
+    if 'idno' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+        
+    success = clear_all_notifications(session['idno'], 'student')
+    return jsonify({'success': success})
 
 @app.route('/admin/pending_reservations')
 def admin_pending_reservations():
