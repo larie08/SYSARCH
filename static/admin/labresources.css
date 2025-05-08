@@ -25,6 +25,24 @@ body {
     z-index: 1000;
 }
 
+.download-btn {
+    background: none;
+    border: none;
+    color: #4CAF50;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.download-btn:hover {
+    background-color: #e8f5e9;
+}
+
+.download-btn i {
+    font-size: 1.2em;
+}
+
 .main-content {
     margin-left: 250px;
     transition: all 0.3s ease;

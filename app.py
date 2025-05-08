@@ -14,6 +14,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from werkzeug.utils import secure_filename
 
+
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'tonifowlersupersecretkey'
 
@@ -23,11 +24,8 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 RESOURCE_FOLDER = os.path.join(app.static_folder, 'resources')
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'resources')
 
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  
-
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'resources')
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 
 with app.app_context():
     create_tables()
@@ -954,46 +952,76 @@ def Resources():
     
     try:
         student_id = session.get('student_id')
-        # Get student's completed purposes
-        completed_purposes = get_student_purposes(student_id)
-        
-        # Get resources for each completed purpose
         resources = []
-        for purpose in completed_purposes:
+        
+        # Get student's completed purposes
+        completed_purposes = get_student_completed_purposes(student_id)
+        
+        # Get all available purposes
+        all_purposes = [
+            'C#', 'C', 'ASP.NET', 'Java', 'Php', 'Database', 
+            'Digital Logic & Design', 'Embedded Designs & IOT', 
+            'System Integration & Architecture', 'Computer Application',
+            'Project Management', 'IT Trends', 'Technopreneurship', 'Capstone'
+        ]
+        
+        # For each purpose, check if files exist and if student has access
+        for purpose in all_purposes:
             files = get_resource_files(purpose)
-            if files:  # Only add folders that have files
+            if files:  # Only add if there are files
                 resources.append({
                     'name': purpose,
-                    'files': files
+                    'files': files,
+                    'accessible': purpose in completed_purposes
                 })
         
-        return render_template('student/lab.html', resources=resources)
+        return render_template('student/lab.html', 
+                             resources=resources,
+                             completed_purposes=completed_purposes)
     except Exception as e:
-        print(f"Error in Resources route:", e)
+        print(f"Error in Resources route: {e}")
         return render_template('student/lab.html', resources=[])
 
-@app.route('/student/download-resource/<folder>/<filename>')
-def download_student_resource(folder, filename):
-    if 'username' not in session:
+@app.route('/admin/download-resource/<folder>/<filename>')
+def admin_download_resource(folder, filename):
+    if 'admin_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
-    student_id = session.get('student_id')
-    # Verify student has completed the sit-in for this resource
-    completed_purposes = get_student_completed_purposes(student_id)
-    if folder.replace('_', ' ') not in completed_purposes:
-        return jsonify({'error': 'Access denied'}), 403
-    
     try:
-        file_path = os.path.join(RESOURCE_FOLDER, folder, secure_filename(filename))
-        if os.path.exists(file_path):
-            return send_file(
-                file_path,
-                as_attachment=True,
-                download_name=filename
-            )
-        return jsonify({'error': 'File not found'}), 404
+        safe_filename = secure_filename(filename)
+        # Make sure to use the correct path to your resources folder
+        file_path = os.path.join(app.static_folder, 'resources', folder, safe_filename)
+        
+        if not os.path.exists(file_path):
+            flash('File not found.', 'error')
+            return redirect(url_for('admin_resources'))
+        
+        # Get file extension and set correct MIME type
+        file_ext = os.path.splitext(filename)[1].lower()
+        mime_type = {
+            '.pdf': 'application/pdf',
+            '.doc': 'application/msword',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.xls': 'application/vnd.ms-excel',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            '.txt': 'text/plain',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png'
+        }.get(file_ext, 'application/octet-stream')
+        
+        return send_file(
+            file_path,
+            mimetype=mime_type,
+            as_attachment=True,
+            download_name=filename,
+            max_age=0  # Prevent caching
+        )
+            
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Download error: {e}")
+        flash('Error downloading file.', 'error')
+        return redirect(url_for('admin_resources'))
 
 @app.route('/Session')
 def Session():

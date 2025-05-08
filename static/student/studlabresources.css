@@ -103,7 +103,6 @@ body {
 /* Sidebar Styles */
 
 /*Lab Resources*/
-/*Lab Resources*/
 .top-bar {
     display: flex;
     flex-direction: column;
@@ -156,23 +155,6 @@ body {
     top: 50%;
     transform: translateY(-50%);
     color: #666;
-}
-
-.resources-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    padding: 20px 0;
-}
-
-.resource-folder {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 15px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
 }
 
 .resource-folder:hover {
@@ -238,11 +220,6 @@ body {
     margin-bottom: 15px;
     padding-bottom: 15px;
     border-bottom: 1px solid #eee;
-}
-
-.file-name {
-    font-weight: 500;
-    color: #333;
 }
 
 .file-size {
@@ -320,12 +297,6 @@ body {
     width: 100%;
 }
 
-.file-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
 .file-list li {
     padding: 8px;
     border-bottom: 1px solid #eee;
@@ -379,18 +350,8 @@ body {
     border: 1px solid #bbdefb;
 }
 
-.download-btn {
-    background-color: #e8f5e9;
-    color: #388e3c;
-    border: 1px solid #c8e6c9;
-}
-
 .preview-btn:hover {
     background-color: #bbdefb;
-}
-
-.download-btn:hover {
-    background-color: #c8e6c9;
 }
 
 /* Top row - Programming & Database */
@@ -479,4 +440,116 @@ body {
     .resource-item {
         flex: 0 1 100%;
     }
+}
+
+
+/* Resources Container */
+.resources-container {
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.search-bar {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.search-bar .search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+/* Resources Grid */
+.resources-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.resource-folder {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.folder-header {
+    padding: 15px;
+    background: #f8f9fa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background-color 0.2s;
+}
+
+.folder-header:hover {
+    background: #f0f0f0;
+}
+
+.folder-icon {
+    color: #603A75;
+    font-size: 1.2em;
+}
+
+/* File List */
+.file-list {
+    padding: 10px;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    gap: 10px;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-name {
+    flex: 1;
+    font-size: 14px;
+}
+
+.file-size, .file-date {
+    color: #666;
+    font-size: 12px;
+    margin: 0 10px;
+}
+
+.download-btn {
+    background: #603A75;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.download-btn:hover {
+    background: #4c2e5d;
+}
+
+.no-files {
+    padding: 15px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
 }

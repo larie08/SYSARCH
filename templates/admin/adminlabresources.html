@@ -357,17 +357,37 @@ async function loadFolderFiles(folderName) {
         
         const filesGrid = document.getElementById('filesGrid');
         filesGrid.innerHTML = files.map(file => `
-            <div class="file-item" data-filename="${file.name}" 
-                onclick="toggleFileSelection(this, '${file.name}')"
-                ondblclick="handleFileClick(this, '${folderName}', '${file.name}')">
-                <i class="fas fa-file fa-2x"></i>
-                <p>${file.name}</p>
+            <div class="file-item" data-filename="${file.name}">
+                <div class="file-info" onclick="toggleFileSelection(this.parentElement, '${file.name}')">
+                    <i class="fas fa-file fa-2x"></i>
+                    <p>${file.name}</p>
+                </div>
+                <div class="file-actions">
+                    <button class="download-btn" onclick="downloadFile('${folderName}', '${file.name}', event)" title="Download">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
             </div>
         `).join('');
     } catch (error) {
         console.error('Error loading files:', error);
     }
 }
+
+    function downloadFile(folderName, fileName, event) {
+        event.preventDefault(); // Prevent any default behavior
+        event.stopPropagation(); // Prevent triggering other events
+        
+        const downloadUrl = `/admin/download-resource/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`;
+        
+        // Create a temporary link element
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName; // Set the download attribute
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 
 // Close modal when clicking outside
 window.onclick = function(event) {

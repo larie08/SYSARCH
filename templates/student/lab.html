@@ -57,13 +57,17 @@
                             {% if resource.files %}
                                 {% for file in resource.files %}
                                 <div class="file-item">
-                                    <i class="fas fa-file"></i>
-                                    <span class="file-name">{{ file.name }}</span>
-                                    <span class="file-size">{{ file.size|filesizeformat }}</span>
-                                    <span class="file-date">{{ file.date }}</span>
-                                    <button class="download-btn" onclick="downloadFile('{{ resource.name }}', '{{ file.name }}')">
+                                    <div class="file-info">
+                                        <i class="fas fa-file"></i>
+                                        <span class="file-name">{{ file.name }}</span>
+                                        <span class="file-size">{{ file.size }}</span>
+                                        <span class="file-date">{{ file.date }}</span>
+                                    </div>
+                                    <a href="{{ url_for('download_student_resource', folder=resource.name, filename=file.name) }}" 
+                                       class="download-btn" 
+                                       download>
                                         <i class="fas fa-download"></i>
-                                    </button>
+                                    </a>
                                 </div>
                                 {% endfor %}
                             {% else %}

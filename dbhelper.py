@@ -322,110 +322,25 @@ def save_resource_file(folder_name, file_name, file_path, file_type, file_size, 
     except Exception as e:
         print(f"Database error in save_resource_file: {e}")
         return False
-
-
-def get_resource_files(folder_name):
-    """Get files for a specific resource folder"""
-    try:
-        with sqlite3.connect("users.db") as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT name, file_path, file_type, file_size, upload_date
-                FROM resources
-                WHERE folder_name = ? AND is_active = 1
-                ORDER BY upload_date DESC
-            """, (folder_name,))
-            
-            files = cursor.fetchall()
-            return [{
-                'name': file[0],
-                'path': file[1],
-                'type': file[2],
-                'size': file[3],
-                'date': file[4]
-            } for file in files]
-    except Exception as e:
-        print(f"Error getting resource files: {e}")
-        return []
 # student lab resources end
 
 # student lab purpose start 
 def get_student_purposes(student_id):
-    """Get unique purposes from student's sit-in history"""
+    """Get unique purposes from student's completed sit-ins"""
     try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        
-        # First get the completed purposes for this student
-        cursor.execute("""
-            SELECT DISTINCT purpose 
-            FROM reservations 
-            WHERE idno = ? 
-            AND status = 'Completed'
-        """, (student_id,))
-        
-        completed_purposes = [row[0] for row in cursor.fetchall()]
-        
-        # Map the purposes to their corresponding folder names
-        purpose_mapping = {
-            'C': 'C Programming',
-            'C#': 'C# Programming',
-            'Java': 'Java Programming',
-            'Python': 'Python Programming',
-            'Database': 'Database',
-            'Digital Logic & Design': 'Digital Logic & Design',
-            'Embedded Designs & IOT': 'Embedded Systems & IoT',
-            'System Integration & Architecture': 'System Integration & Archi',
-            'Computer Application': 'Computer Application',
-            'Project Management': 'Project Management',
-            'IT Trends': 'IT Trends',
-            'Technopreneurship': 'Technopreneurship',
-            'Capstone': 'Capstone'
-        }
-        
-        # Get available resources from the database
-        cursor.execute("""
-            SELECT DISTINCT r.folder_name, r.name, r.file_path
-            FROM resources r
-            WHERE r.is_active = 1
-            AND r.folder_name IN (
-                SELECT folder_name FROM resources
-                WHERE folder_name IS NOT NULL
-            )
-        """)
-        available_resources = cursor.fetchall()
-        
-        # Create a dictionary to store folder contents
-        folder_contents = {}
-        for resource in available_resources:
-            folder_name = resource[0]
-            if folder_name not in folder_contents:
-                folder_contents[folder_name] = []
-            folder_contents[folder_name].append({
-                'name': resource[1],
-                'path': resource[2]
-            })
-        
-        # Filter and map the purposes
-        available_purposes = []
-        for purpose in completed_purposes:
-            if purpose in purpose_mapping:
-                folder_name = purpose_mapping[purpose]
-                if folder_name in folder_contents:
-                    available_purposes.append({
-                        'name': purpose,
-                        'folder': folder_name,
-                        'files': folder_contents[folder_name]
-                    })
-        
-        return available_purposes
-        
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT purpose 
+                FROM reservations 
+                WHERE idno = ? 
+                AND status = 'Completed'
+                ORDER BY purpose
+            """, (student_id,))
+            return [row[0] for row in cursor.fetchall()]  # Return list of strings
     except Exception as e:
-        print(f"Database error in get_student_purposes: {e}")
+        print(f"Error getting student purposes: {e}")
         return []
-    finally:
-        if conn:
-            conn.close()
 
 def get_student_completed_purposes(student_id):
     """Get list of completed purposes for a student"""
